@@ -132,22 +132,24 @@ def run(Z_history, algorithm):
     print("action_space",env.action_space.n)
 
     #train
-    max_episode = 1
+    max_episode = 100
     n_episode = 0
     max_step = 100
     scores = []
     prob_list = []
-    zeros, ones, twos = 0, 0, 0
+
     while n_episode < max_episode:
         #done = False
         states = []
         actions = []
         rewards = []
+        zeros, ones, twos = 0, 0, 0
         observation = torch.tensor(env.reset(), dtype=torch.float)
         for i in range(max_step):#while not done:
             #print("hello")
             if algorithm == "reinforce":
                 action = model.select_action(observation)
+                #print("act",action)
             elif algorithm == "a2c":
                 action = actor.select_action(observation)
 
@@ -165,10 +167,7 @@ def run(Z_history, algorithm):
             states.append(observation)
             actions.append(torch.tensor(action, dtype=torch.int))
 
-
-
             rewards.append(reward)
-            #print(rewards)
             observation = torch.tensor(obs, dtype=torch.float)
 
         zero_prob = zeros/max_step
@@ -207,12 +206,14 @@ def run(Z_history, algorithm):
         #env.render()
 
     print('reward', total_rewards)
-    '''
+
+    plt.figure()
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
-    plt.show()
+    #plt.show()
     '''
+
 
     tt = np.linspace(0, max_step, Z_history.shape[0])
     plt.plot(tt, Z_history[:, 0], 'kx', label='Z0')
@@ -224,6 +225,7 @@ def run(Z_history, algorithm):
     #plt.savefig('./lv.png')
 
     '''
+    plt.figure()
     tt = np.linspace(0, max_episode, max_episode)
 
     zeros_prob = [item[0] for item in prob_list]
@@ -232,12 +234,12 @@ def run(Z_history, algorithm):
     plt.plot(tt, zeros_prob, 'kx', label='Prob 0')
     plt.plot(tt, ones_prob, 'rx', label='Prob 1')
     plt.plot(tt, twos_prob, 'o', label='Prob 2')
-    #plt.legend(shadow=True, loc='lower right')
-    plt.xlabel('t')
+    plt.legend(shadow=True, loc='lower right')
+    plt.xlabel('Episode #')
     plt.ylabel('Probabilities')
     plt.show()
     #plt.savefig('./lv.png')
-    '''
+
     exit()
     env.close()
 

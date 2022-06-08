@@ -52,10 +52,11 @@ class LotkaVolterraEnv(gym.Env):
         #reward = -self.state[0]
         #add prey
         if self.u[0] ==0 and  self.u[1] == 1:
-            self.state[0] += 0.01
+            self.state[0] += 0.1
         #add predator
-        elif self.u[0] ==1 and  self.u[1] == 0:
-            self.state[1] += 0.01
+        elif self.u[0] ==1 and self.u[1] == 0:
+            self.state[1] += 0.1
+
         #do nothing
 
         ratio_optimal = 1
