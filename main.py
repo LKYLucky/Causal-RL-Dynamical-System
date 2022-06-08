@@ -148,17 +148,6 @@ def run(Z_history, algorithm):
                 action = model.select_action(observation)
             elif algorithm == "a2c":
                 action = actor.select_action(observation)
-<<<<<<< HEAD
-=======
-            '''
-            if action == 0:
-                zeros += 1
-            elif action == 1:
-                ones += 1
-            elif action == 2:
-                twos += 1
-            '''
->>>>>>> 5a2c576a0015b6c2d1c6e7bde4936af9efb2c6cc
 
             #convert action to vectors (0,0),(0,1),(1,0)
             u = convert_to_vec(action)
@@ -170,17 +159,8 @@ def run(Z_history, algorithm):
 
             rewards.append(reward)
             observation = torch.tensor(obs, dtype=torch.float)
-<<<<<<< HEAD
 
-        x = torch.tensor([2, 1], dtype=torch.float)
-=======
-        '''
-        zero_prob = zeros/max_step
-        one_prob = ones/max_step
-        two_prob = twos/max_step
-        '''
-        x = torch.tensor([1, 1], dtype=torch.float)
->>>>>>> 5a2c576a0015b6c2d1c6e7bde4936af9efb2c6cc
+        x = torch.tensor([1,2], dtype=torch.float)
         y = model.forward(x)
         y = y.tolist()
         prob_list.append(y)
@@ -217,11 +197,7 @@ def run(Z_history, algorithm):
 
     print('reward', total_rewards)
     print("p_list",prob_list)
-<<<<<<< HEAD
 
-=======
-    '''
->>>>>>> 5a2c576a0015b6c2d1c6e7bde4936af9efb2c6cc
     plt.figure()
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
@@ -229,10 +205,6 @@ def run(Z_history, algorithm):
     #plt.show()
 
     '''
-<<<<<<< HEAD
-=======
-    '''
->>>>>>> 5a2c576a0015b6c2d1c6e7bde4936af9efb2c6cc
     tt = np.linspace(0, max_step, Z_history.shape[0])
     plt.plot(tt, Z_history[:, 0], 'kx', label='Z0')
     plt.plot(tt, Z_history[:, 1], 'rx', label='Z1')
@@ -241,14 +213,9 @@ def run(Z_history, algorithm):
     plt.ylabel('n')
     plt.show()
     #plt.savefig('./lv.png')
-<<<<<<< HEAD
 
 
-=======
->>>>>>> 5a2c576a0015b6c2d1c6e7bde4936af9efb2c6cc
     '''
-
-
     plt.figure()
     tt = np.linspace(0, max_episode, max_episode)
 
