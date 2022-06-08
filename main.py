@@ -143,39 +143,42 @@ def run(Z_history, algorithm):
         states = []
         actions = []
         rewards = []
-        zeros, ones, twos = 0, 0, 0
         observation = torch.tensor(env.reset(), dtype=torch.float)
         for i in range(max_step):#while not done:
-            #print("hello")
             if algorithm == "reinforce":
                 action = model.select_action(observation)
-                #print("act",action)
             elif algorithm == "a2c":
                 action = actor.select_action(observation)
-
+            '''
             if action == 0:
                 zeros += 1
             elif action == 1:
                 ones += 1
             elif action == 2:
                 twos += 1
+            '''
 
             #convert action to vectors (0,0),(0,1),(1,0)
             u = convert_to_vec(action)
             obs, reward, done, info, Z= env.step(u)
             Z_history = np.concatenate((Z_history, Z), 0)
             states.append(observation)
+
             actions.append(torch.tensor(action, dtype=torch.int))
 
             rewards.append(reward)
             observation = torch.tensor(obs, dtype=torch.float)
-
+        '''
         zero_prob = zeros/max_step
         one_prob = ones/max_step
         two_prob = twos/max_step
-
+        '''
+        x = torch.tensor([1, 1], dtype=torch.float)
+        y = model.forward(x)
+        y = y.tolist()
+        prob_list.append(y)
         scores.append(sum(rewards))
-        prob_list.append([zero_prob, one_prob, two_prob])
+        #prob_list.append([zero_prob, one_prob, two_prob])
         n_episode += 1
 
         returns = discounted_rewards(rewards, gamma=0.9999)
@@ -206,15 +209,15 @@ def run(Z_history, algorithm):
         #env.render()
 
     print('reward', total_rewards)
-
+    print("p_list",prob_list)
+    '''
     plt.figure()
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
     #plt.show()
     '''
-
-
+    '''
     tt = np.linspace(0, max_step, Z_history.shape[0])
     plt.plot(tt, Z_history[:, 0], 'kx', label='Z0')
     plt.plot(tt, Z_history[:, 1], 'rx', label='Z1')
@@ -223,17 +226,18 @@ def run(Z_history, algorithm):
     plt.ylabel('n')
     plt.show()
     #plt.savefig('./lv.png')
-
     '''
+
+
     plt.figure()
     tt = np.linspace(0, max_episode, max_episode)
 
     zeros_prob = [item[0] for item in prob_list]
     ones_prob = [item[1] for item in prob_list]
     twos_prob = [item[2] for item in prob_list]
-    plt.plot(tt, zeros_prob, 'kx', label='Prob 0')
-    plt.plot(tt, ones_prob, 'rx', label='Prob 1')
-    plt.plot(tt, twos_prob, 'o', label='Prob 2')
+    plt.plot(tt, zeros_prob, 'kx', label='Item 0')
+    plt.plot(tt, ones_prob, 'rx', label='Item 1')
+    plt.plot(tt, twos_prob, 'o', label='Item 2')
     plt.legend(shadow=True, loc='lower right')
     plt.xlabel('Episode #')
     plt.ylabel('Probabilities')
