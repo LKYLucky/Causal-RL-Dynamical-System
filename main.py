@@ -7,6 +7,7 @@ import torch
 #from stable_baselines.sac.policies import MlpPolicy
 #from stable_baselines import SAC
 
+
 class Model(torch.nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -25,6 +26,10 @@ class Model(torch.nn.Module):
     def select_action(self, state):
         state = torch.tensor(state, dtype=torch.float)
         probs = self.forward(state)
+    
+        #print('action probs:')
+        #print(probs)
+
         # Equivalent to multinomial
         m = torch.distributions.Categorical(probs)
         action = m.sample().item()
@@ -87,63 +92,79 @@ def discounted_rewards(rewards, gamma):
     return returns
 
 def update_policy_reinforce(states, actions, returns,model, optimizer):
+
+    loss = torch.zeros(1)
+
     for s in range(len(states)):
         state, action, J = states[s], actions[s], returns[s]
         probs = model(state)  # https://pytorch.org/docs/stable/distributions.html
         m = torch.distributions.Categorical(probs=probs)
         log_prob = m.log_prob(action)
-        loss = - log_prob * J
+        loss -= log_prob * J
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
 def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer,critic_optimizer):
+
+    actor_loss, critic_loss = torch.zeros(1), torch.zeros(1)
+
     for s in range(len(states)):
         state, action, R = states[s], actions[s], returns[s]
         probs = actor(state)  # https://pytorch.org/docs/stable/distributions.html
         policy = torch.distributions.Categorical(probs=probs)
         value = torch.IntTensor.item(critic(state))
-
         advantage = R - value
-        actor_optimizer.zero_grad()
-        actor_loss = - (policy.log_prob(action) * advantage)
-        actor_loss.backward()
-        actor_optimizer.step()
 
+        actor_loss -= (policy.log_prob(action) * advantage)
         # loss for critic (MSE)
-        critic_optimizer.zero_grad()
-        critic_loss = torch.tensor(advantage, requires_grad=True).pow(2)
-        critic_loss.backward()
-        critic_optimizer.step()
+        critic_loss += torch.tensor(advantage, requires_grad=True).pow(2)
 
-def run(Z_history, algorithm):
+    actor_optimizer.zero_grad()
+    actor_loss.backward()
+    actor_optimizer.step()
+
+    critic_optimizer.zero_grad()
+    critic_loss.backward()
+    critic_optimizer.step()
+
+def run(env, algorithm):
+
     model = Model()
     actor = Actor()
     critic = Critic()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-    actor_optimizer = torch.optim.Adam(actor.parameters(), lr=0.001)
-    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=0.001)
+    lr = 0.01
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    actor_optimizer = torch.optim.Adam(actor.parameters(), lr=lr)
+    critic_optimizer = torch.optim.Adam(critic.parameters(), lr=lr)
 
     print("obs space",env.observation_space)
     print("action_space",env.action_space.n)
 
     #train
-    max_episode = 100
+    max_episode = 1000
     n_episode = 0
-    max_step = 100
+    max_step = 10
     scores = []
     prob_list = []
 
     while n_episode < max_episode:
+
+        print('starting training episode %d' % n_episode)
+
+        Z_init = np.array([1.0, 1.5]) # np.ones((N,))
+        env.init_state = Z_init
+        Z_history = np.expand_dims(Z_init, 0)
+
         #done = False
         states = []
         actions = []
         rewards = []
         observation = torch.tensor(env.reset(), dtype=torch.float)
-        for i in range(max_step):#while not done:
+
+        for i in range(max_step):
             if algorithm == "reinforce":
                 action = model.select_action(observation)
             elif algorithm == "a2c":
@@ -151,7 +172,7 @@ def run(Z_history, algorithm):
 
             #convert action to vectors (0,0),(0,1),(1,0)
             u = convert_to_vec(action)
-            obs, reward, done, info, Z= env.step(u)
+            obs, reward, _, _, Z = env.step(u)
             Z_history = np.concatenate((Z_history, Z), 0)
             states.append(observation)
 
@@ -168,19 +189,23 @@ def run(Z_history, algorithm):
         #prob_list.append([zero_prob, one_prob, two_prob])
         n_episode += 1
 
-        returns = discounted_rewards(rewards, gamma=0.95)
+        returns = discounted_rewards(rewards, gamma=0.9)
         if algorithm == "reinforce":
             update_policy_reinforce(states, actions, returns, model, optimizer)
         elif algorithm == "a2c":
             update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer,critic_optimizer)
 
-    #eval
+
+    #eval -- let's make this a separate function, analogous to 'run' but without any training or policy updating
     #done = False
     observation = torch.tensor(env.reset(), dtype=torch.float)
     #env.render()
 
     rewards = []
     total_rewards = 0
+    Z_init = np.random.uniform(0.0,1.0,size=(2)) # randomly sampled np.array([1.0, 1.5]) # np.ones((N,))
+    env.init_state = Z_init
+    Z_history = np.expand_dims(Z_init, 0)
     for i in range(max_step):#while not done:
 
         if algorithm == "reinforce":
@@ -189,7 +214,8 @@ def run(Z_history, algorithm):
             action = actor.select_action(observation)
 
         u = convert_to_vec(action)
-        obs, reward, done, info,Z = env.step(u)
+        obs, reward, _, _, Z = env.step(u)
+        Z_history = np.concatenate((Z_history, Z), 0)
         observation = torch.tensor(obs, dtype=torch.float)
         rewards.append(reward)
         total_rewards += reward
@@ -202,17 +228,19 @@ def run(Z_history, algorithm):
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
+    plt.savefig('./rewards.png')
     #plt.show()
 
-    '''
     tt = np.linspace(0, max_step, Z_history.shape[0])
-    plt.plot(tt, Z_history[:, 0], 'kx', label='Z0')
-    plt.plot(tt, Z_history[:, 1], 'rx', label='Z1')
+    plt.cla()
+    plt.plot(tt, Z_history[:, 0], 'b', label='prey')
+    plt.plot(tt, Z_history[:, 1], 'r', label='predators')
+    plt.plot(tt, Z_history[:, 0]/Z_history[:, 1], 'k', label='ratio')
     plt.legend(shadow=True, loc='lower right')
     plt.xlabel('t')
     plt.ylabel('n')
-    plt.show()
-    #plt.savefig('./lv.png')
+    plt.savefig('./state_trajectory.png')
+    #plt.show()
 
 
     '''
@@ -229,24 +257,17 @@ def run(Z_history, algorithm):
     plt.xlabel('Episode #')
     plt.ylabel('Probabilities')
     plt.show()
-    #plt.savefig('./lv.png')
-    
+    #plt.savefig('./policy_probs.png')
+    '''
+
     exit()
     env.close()
 
 N = 2 # number of species
-d = N + N*N # [ALTERNATE:] int(N + N*(N-1)/2) # we assume shared rate constants for Z_i*Z_j in d(Z_i)/dt and d(Z_j)/dt
 tau = 1
-dt = 1e-3
-Z_current = np.array([1.0, 1.5]) # np.ones((N,))
-env = LotkaVolterraEnv(N, tau, dt, Z_current)
-Z_history = np.expand_dims(Z_current, 0)
-env.state = Z_current
+dt = 1e-2
+env = LotkaVolterraEnv(N, tau, dt)
 
-u = np.array([0,0.1])
-
-theta_hat = np.ones(d)
-
-run(Z_history, algorithm = "reinforce")
-#run(Z_history, algorithm = "a2c")
+run(env, algorithm = "reinforce")
+#run(env, algorithm = "a2c")
 

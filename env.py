@@ -36,20 +36,19 @@ class LotkaVolterraEnv(gym.Env):
         Zdot += np.multiply(Z, np.einsum('ij,j->i', self.theta[1], Z))
         # control terms
         Zdot += self.u
+        
         return Zdot
 
     def step(self, action):
         'integrates the ODE system with a constant additive force vector (action)'
+        'returns a reward based on the ODE variables at the *end* of this time interval'
 
         tt = np.linspace(0, self.tau, int(1/self.dt))
 
-        self.u = 0.01 * action
+        self.u = 0.2 * action
         z_init = self.state
         z = odeint(self.f, z_init, tt)
         self.state = z[-1]
-
-        #reward = -self.state[0]
-
 
         ratio_optimal = 1
         reward = 1 - (ratio_optimal - self.state[0]/self.state[1])**2
@@ -58,13 +57,12 @@ class LotkaVolterraEnv(gym.Env):
         info = {} # can be used in custom Gym environments; optional
 
         # we assume z is observed with zero noise
-        #obs = z + 0
         obs = self.state
-        return obs, reward, done, info, z#return obs, reward, done, info
+
+        return obs, reward, done, info, z
 
     def reset(self):
         'resets the ODE system to initial conditions'
-        #raise NotImplementedError
         self.state = self.init_state
 
         return self.state
