@@ -154,7 +154,9 @@ def run(env, algorithm):
 
         print('starting training episode %d' % n_episode)
 
-        Z_init = np.array([1.0, 1.5]) # np.ones((N,))
+        Z_init = np.random.uniform(0.0, 1.0, size=(2))
+
+        #Z_init = np.array([1.0, 1.5]) # np.ones((N,))
         env.init_state = Z_init
         Z_history = np.expand_dims(Z_init, 0)
 
