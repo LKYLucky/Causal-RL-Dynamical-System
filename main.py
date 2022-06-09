@@ -154,7 +154,7 @@ def run(env, algorithm):
 
         print('starting training episode %d' % n_episode)
 
-        Z_init = np.random.uniform(0.0, 1.0, size=(2))
+        Z_init = np.random.uniform(0.5, 2.0, size=(2))
 
         #Z_init = np.array([1.0, 1.5]) # np.ones((N,))
         env.init_state = Z_init
@@ -205,7 +205,7 @@ def run(env, algorithm):
 
     rewards = []
     total_rewards = 0
-    Z_init = np.random.uniform(0.0,1.0,size=(2)) # randomly sampled np.array([1.0, 1.5]) # np.ones((N,))
+    Z_init = np.random.uniform(0.5,2.0,size=(2)) # randomly sampled np.array([1.0, 1.5]) # np.ones((N,))
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
     for i in range(max_step):#while not done:
