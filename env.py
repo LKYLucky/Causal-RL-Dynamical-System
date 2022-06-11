@@ -36,7 +36,7 @@ class LotkaVolterraEnv(gym.Env):
         Zdot += np.multiply(Z, np.einsum('ij,j->i', self.theta[1], Z))
         # control terms
         Zdot += self.u
-        
+        #print("bruhhh", self.u)
         return Zdot
 
     def step(self, action):
@@ -45,14 +45,17 @@ class LotkaVolterraEnv(gym.Env):
 
         tt = np.linspace(0, self.tau, int(1/self.dt))
 
-        self.u = 0.2 * action
+        #ratio_optimal = 1
+        #r_prev = 1 - (ratio_optimal - self.state[0] / self.state[1]) ** 2
+        self.u = 0.02 * action
+        #print("act",self.u)
         z_init = self.state
         z = odeint(self.f, z_init, tt)
         self.state = z[-1]
 
         ratio_optimal = 1
         reward = 1 - (ratio_optimal - self.state[0]/self.state[1])**2
-        
+
         done = False # indicates whether the episode is terminated; optional
         info = {} # can be used in custom Gym environments; optional
 
