@@ -27,6 +27,7 @@ class LotkaVolterraEnv(gym.Env):
         theta_quad[0,1] += -0.05
         theta_quad[1,0] += 0.05
         self.theta = [theta_lin, theta_quad] # there may be a better way to collectively denote the parameters
+        print("self.theta",self.theta)
         
     def f(self, Z, t):
    
@@ -36,7 +37,7 @@ class LotkaVolterraEnv(gym.Env):
         Zdot += np.multiply(Z, np.einsum('ij,j->i', self.theta[1], Z))
         # control terms
         Zdot += self.u
-        
+        #print("bruhhh", self.u)
         return Zdot
 
     def step(self, action):
@@ -44,15 +45,20 @@ class LotkaVolterraEnv(gym.Env):
         'returns a reward based on the ODE variables at the *end* of this time interval'
 
         tt = np.linspace(0, self.tau, int(1/self.dt))
+        state_prev = self.state
 
-        self.u = 0.2 * action
+        self.u = 0.02 * action
+        #print("act",self.u)
         z_init = self.state
         z = odeint(self.f, z_init, tt)
         self.state = z[-1]
+        state_curr = self.state
 
+        #print("state_prev",state_prev,"state_curr",state_curr)
         ratio_optimal = 1
-        reward = 1 - (ratio_optimal - self.state[0]/self.state[1])**2
-        
+        #reward = 1 - (ratio_optimal - self.state[0]/self.state[1])**2
+        reward = -((state_prev - state_curr)**2).sum()
+        #reward = -(state_prev[0] - state_curr[0])**2-(state_prev[1] - state_curr[1])**2
         done = False # indicates whether the episode is terminated; optional
         info = {} # can be used in custom Gym environments; optional
 
