@@ -26,7 +26,6 @@ class LotkaVolterraEnv(gym.Env):
         theta_quad[0, 1] += -0.05
         theta_quad[1, 0] += 0.05
         self.theta = [theta_lin, theta_quad]  # there may be a better way to collectively denote the parameters
-        print("self.theta", self.theta)
 
     def f(self, Z, t):
         # linear terms
@@ -57,7 +56,6 @@ class LotkaVolterraEnv(gym.Env):
         orth[0] = -Zdot[1]
         orth[1] = Zdot[0]
 
-        # print("bruhhh", self.u)
         return orth
 
     def step(self, action):
@@ -67,7 +65,7 @@ class LotkaVolterraEnv(gym.Env):
         tt = np.linspace(0, self.tau, int(1 / self.dt))
         state_prev = self.state
 
-        self.u = 0.1 * action
+        self.u = 0.01 * action
         # print("act",self.u)
         z_init = self.state
         z = odeint(self.f, z_init, tt)

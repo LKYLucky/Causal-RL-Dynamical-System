@@ -102,12 +102,12 @@ def convert_to_vec(action):
 
 
 
-def discounted_rewards(rewards, gamma):
+def discounted_rewards(rewards,R, gamma):
     returns = np.zeros_like(rewards)
-    J = 0.0
-    for t in reversed(range(len(rewards))):
-        J = J * gamma + rewards[t]
-        returns[t] = J
+    ### chop the last 20 time steps
+    for t in reversed(range(len(rewards)-20)):
+        R = R * gamma + rewards[t]
+        returns[t] = R
     return returns
 
 
@@ -166,15 +166,18 @@ def run(env, algorithm):
     # train
     max_episode = 100
     n_episode = 0
-    max_step = 150
+    max_step = 100
     scores = []
     prob_list = []
-
+    R = 0
     while n_episode < max_episode:
 
         print('starting training episode %d' % n_episode)
 
-        Z_init = np.random.uniform(2.0,4.0,size=(2))#np.array([1.0, 1.5])
+        prey = np.random.random() * 2
+        pred = np.random.random() * 4
+        Z_init = np.array([prey, pred])
+        #np.array([1.0, 1.5])
 
         # Z_init = np.array([1.0, 1.5]) # np.ones((N,))
         env.init_state = Z_init
@@ -187,11 +190,18 @@ def run(env, algorithm):
         observation = torch.tensor(env.reset(), dtype=torch.float)
 
         for i in range(max_step):
+
+
             if algorithm == "reinforce":
                 action = model.select_action(observation)
             elif algorithm == "a2c":
+                '''
+                if i < 50: #do nothing for first 50 time steps
+                    action = 0
+                else:
+                    action = actor.select_action(observation)
+                '''
                 action = actor.select_action(observation)
-
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
 
@@ -216,14 +226,18 @@ def run(env, algorithm):
         # prob_list.append([zero_prob, one_prob, two_prob])
         n_episode += 1
 
-        returns = discounted_rewards(rewards, gamma=0.9)
+        if algorithm == "reinforce":
+            R = 0
+        elif algorithm == "a2c":
+            action = actor.select_action(observation)
+            R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
+            #print("R",critic(torch.tensor(observation, dtype=torch.float)))
+        returns = discounted_rewards(rewards, R, gamma=0.9)
         if algorithm == "reinforce":
             update_policy_reinforce(states, actions, returns, model, optimizer)
         elif algorithm == "a2c":
             update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer)
 
-    # eval -- let's make this a separate function, analogous to 'run' but without any training or policy updating
-    # done = False
 
     #eval -- let's make this a separate function, analogous to 'run' but without any training or policy updating
     #done = False
@@ -232,7 +246,9 @@ def run(env, algorithm):
 
     rewards = []
     total_rewards = 0
-    Z_init = np.random.uniform(2.0,4.0,size=(2))#np.array([1.0, 1.5]) #np.random.uniform(0.5,2.0,size=(2)) # randomly sampled np.array([1.0, 1.5]) # np.ones((N,))
+    prey = np.random.random() * 2
+    pred = np.random.random() * 4
+    Z_init = np.array([prey, pred])
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
     for i in range(max_step):#while not done:
@@ -255,7 +271,7 @@ def run(env, algorithm):
     print('reward', total_rewards)
     print("p_list",prob_list)
 
-    plt.figure()
+    plt.figure(1)
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
@@ -286,7 +302,9 @@ def run(env, algorithm):
     plt.xlabel('Episode #')
     plt.ylabel('Probabilities')
     plt.savefig('./policy_probs.png')
+
     plt.show()
+
 
     exit()
     env.close()
@@ -297,5 +315,5 @@ dt = 1e-2
 env = LotkaVolterraEnv(N, tau, dt)
 
 #run(env, algorithm = "reinforce")
-#run(env, algorithm = "a2c")
-run(env, algorithm = "optimal policy")
+run(env, algorithm = "a2c")
+#run(env, algorithm = "optimal policy")
