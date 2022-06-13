@@ -75,7 +75,8 @@ class Critic(torch.nn.Module):
     def forward(self, state):
         return self.net(state)
 
-def optimal_policy(state):
+def optimal_policy(state,t):
+    '''
     eps = 0.001
 
     if state[0]>state[1]+0.01:
@@ -84,6 +85,9 @@ def optimal_policy(state):
         action = 2
     else:
         action = 0
+    '''
+
+    action = env.compute_orth(state,t)
     return action
 
 def convert_to_vec(action):
@@ -160,9 +164,9 @@ def run(env, algorithm):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 1000
+    max_episode = 100
     n_episode = 0
-    max_step = 10
+    max_step = 150
     scores = []
     prob_list = []
 
@@ -170,7 +174,7 @@ def run(env, algorithm):
 
         print('starting training episode %d' % n_episode)
 
-        Z_init = np.array([1.0, 1.5])
+        Z_init = np.random.uniform(2.0,4.0,size=(2))#np.array([1.0, 1.5])
 
         # Z_init = np.array([1.0, 1.5]) # np.ones((N,))
         env.init_state = Z_init
@@ -189,12 +193,12 @@ def run(env, algorithm):
                 action = actor.select_action(observation)
 
             elif algorithm == "optimal policy":
-                action = optimal_policy(observation)
+                action = optimal_policy(observation, i)
 
 
             # convert action to vectors (0,0),(0,1),(1,0)
-            u = convert_to_vec(action)
-            obs, reward, _, _, Z = env.step(u)
+            #u = convert_to_vec(action)
+            obs, reward, _, _, Z = env.step(action)
             print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
             states.append(observation)
@@ -228,7 +232,7 @@ def run(env, algorithm):
 
     rewards = []
     total_rewards = 0
-    Z_init = np.array([1.0, 1.5]) #np.random.uniform(0.5,2.0,size=(2)) # randomly sampled np.array([1.0, 1.5]) # np.ones((N,))
+    Z_init = np.random.uniform(2.0,4.0,size=(2))#np.array([1.0, 1.5]) #np.random.uniform(0.5,2.0,size=(2)) # randomly sampled np.array([1.0, 1.5]) # np.ones((N,))
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
     for i in range(max_step):#while not done:
@@ -237,9 +241,11 @@ def run(env, algorithm):
             action = model.select_action(observation)
         elif algorithm == "a2c":
             action = actor.select_action(observation)
+        elif algorithm == "optimal policy":
+            action = optimal_policy(observation, i)
 
-        u = convert_to_vec(action)
-        obs, reward, _, _, Z = env.step(u)
+        #u = convert_to_vec(action)
+        obs, reward, _, _, Z = env.step(action)
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = torch.tensor(obs, dtype=torch.float)
         rewards.append(reward)
@@ -261,7 +267,7 @@ def run(env, algorithm):
     plt.plot(tt, Z_history[:, 0], 'b', label='prey')
     plt.plot(tt, Z_history[:, 1], 'r', label='predators')
     plt.plot(tt, Z_history[:, 0]/Z_history[:, 1], 'k', label='ratio')
-    plt.legend(shadow=True, loc='upper left')
+    plt.legend(shadow=True, loc='upper right')
     plt.xlabel('t')
     plt.ylabel('n')
     plt.savefig('./state_trajectory.png')
