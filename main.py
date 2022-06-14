@@ -1,7 +1,7 @@
+
 import numpy as np
-from scipy.optimize import minimize
 from matplotlib import pyplot as plt
-from env import LotkaVolterraEnv
+from env import LotkaVolterraEnv, BrusselatorEnv
 import torch
 
 
@@ -78,7 +78,6 @@ class Critic(torch.nn.Module):
 def optimal_policy(state,t):
     '''
     eps = 0.001
-
     if state[0]>state[1]+0.01:
         action = 1
     elif state[0]<state[1]-0.01:
@@ -333,7 +332,9 @@ def run(env, algorithm):
 N = 2 # number of species
 tau = 1
 dt = 1e-2
-env = LotkaVolterraEnv(N, tau, dt)
+#env = LotkaVolterraEnv(N, tau, dt)
+env = BrusselatorEnv(N, tau, dt)
+
 
 #run(env, algorithm = "reinforce")
 run(env, algorithm = "a2c")

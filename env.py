@@ -38,6 +38,7 @@ class LotkaVolterraEnv(gym.Env):
         # print("bruhhh", self.u)
         return Zdot
 
+
     def f(self, Z, t, remove_u = False):
         # linear terms
         Zdot = np.multiply(Z, self.theta[0])
@@ -88,3 +89,13 @@ class LotkaVolterraEnv(gym.Env):
         self.state = self.init_state
 
         return self.state
+
+class BrusselatorEnv(LotkaVolterraEnv):
+
+    def f(self, Z, t):
+        k1 = 0.1
+        k2 = 0.05
+        X, Y = Z
+        Zdot = [k1 + X**2*Y - k2*X - X, k2*X - X**2*Y]
+        Zdot += self.u
+        return Zdot
