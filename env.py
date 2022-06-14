@@ -66,7 +66,6 @@ class LotkaVolterraEnv(gym.Env):
         state_prev = self.state
 
         self.u = 0.1 * action
-        # print("act",self.u)
         z_init = self.state
         z = odeint(self.f, z_init, tt)
         self.state = z[-1]
@@ -82,7 +81,6 @@ class LotkaVolterraEnv(gym.Env):
 
         # we assume z is observed with zero noise
         obs = self.state
-
         return obs, reward, done, info, z
 
     def reset(self):
