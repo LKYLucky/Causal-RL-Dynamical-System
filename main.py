@@ -98,8 +98,6 @@ def convert_to_vec(action):
     elif action == 2:
         u = np.array([1, 0])
 
-    return u
-
 
 
 def discounted_rewards(rewards,R, gamma):
@@ -194,13 +192,13 @@ def run(env, algorithm):
             if algorithm == "reinforce":
                 action = model.select_action(observation)
             elif algorithm == "a2c":
-
+                '''
                 if n_episode < max_episode/2: #do nothing for first 50 time steps
                     action = 0
                 else:
                     action = actor.select_action(observation)
-
-                #action = actor.select_action(observation)
+                '''
+                action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
 
