@@ -93,8 +93,8 @@ class LotkaVolterraEnv(gym.Env):
 class BrusselatorEnv(LotkaVolterraEnv):
 
     def f(self, Z, t):
-        k1 = 0.1
-        k2 = 0.05
+        k1 = 1
+        k2 = 1.7
         X, Y = Z
         Zdot = [k1 + X**2*Y - k2*X - X, k2*X - X**2*Y]
         Zdot += self.u

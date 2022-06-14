@@ -160,7 +160,7 @@ def run(env, algorithm):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 200
+    max_episode = 100
     n_episode = 0
     max_step = 100
     scores = []
@@ -172,7 +172,7 @@ def run(env, algorithm):
 
         prey = np.random.random() * 2
         pred = np.random.random() * 4
-        Z_init = np.array([prey, pred])
+        Z_init = np.array([1, 1])#np.array([prey, pred])
         env.init_state = Z_init
         Z_history = np.expand_dims(Z_init, 0)
 
@@ -240,7 +240,7 @@ def run(env, algorithm):
     total_rewards = 0
     prey = np.random.random() * 2
     pred = np.random.random() * 4
-    Z_init = np.array([prey, pred]) #np.array([1.0, 1.5])
+    Z_init = np.array([1, 1]) #np.array([prey, pred]) #np.array([1.0, 1.5])
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
     for i in range(max_step):#while not done:
