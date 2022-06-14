@@ -195,7 +195,7 @@ def run(env, algorithm):
                 action = model.select_action(observation)
             elif algorithm == "a2c":
 
-                if i < 50: #do nothing for first 50 time steps
+                if n_episode < max_episode/2: #do nothing for first 50 time steps
                     action = 0
                 else:
                     action = actor.select_action(observation)
