@@ -179,7 +179,7 @@ def run(env, algorithm):
         Z_init = np.array([prey, pred])
         #np.array([1.0, 1.5])
 
-        # Z_init = np.array([1.0, 1.5]) # np.ones((N,))
+        Z_init = np.array([1.0, 1.5]) # np.ones((N,))
         env.init_state = Z_init
         Z_history = np.expand_dims(Z_init, 0)
 
@@ -191,17 +191,16 @@ def run(env, algorithm):
 
         for i in range(max_step):
 
-
             if algorithm == "reinforce":
                 action = model.select_action(observation)
             elif algorithm == "a2c":
-                '''
+
                 if i < 50: #do nothing for first 50 time steps
                     action = 0
                 else:
                     action = actor.select_action(observation)
-                '''
-                action = actor.select_action(observation)
+
+                #action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
 
@@ -231,7 +230,7 @@ def run(env, algorithm):
         elif algorithm == "a2c":
             action = actor.select_action(observation)
             R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
-            #print("R",critic(torch.tensor(observation, dtype=torch.float)))
+            print("R", R)
         returns = discounted_rewards(rewards, R, gamma=0.9)
         if algorithm == "reinforce":
             update_policy_reinforce(states, actions, returns, model, optimizer)
@@ -248,7 +247,7 @@ def run(env, algorithm):
     total_rewards = 0
     prey = np.random.random() * 2
     pred = np.random.random() * 4
-    Z_init = np.array([prey, pred])
+    Z_init = np.array([prey, pred]) #np.array([1.0, 1.5])
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
     for i in range(max_step):#while not done:

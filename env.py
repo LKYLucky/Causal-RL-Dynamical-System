@@ -65,7 +65,7 @@ class LotkaVolterraEnv(gym.Env):
         tt = np.linspace(0, self.tau, int(1 / self.dt))
         state_prev = self.state
 
-        self.u = 0.01 * action
+        self.u = 0.1 * action
         # print("act",self.u)
         z_init = self.state
         z = odeint(self.f, z_init, tt)
