@@ -160,7 +160,7 @@ def run(env, algorithm):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 100
+    max_episode = 1000
     n_episode = 0
     max_step = 100
     scores = []
@@ -172,7 +172,7 @@ def run(env, algorithm):
 
         prey = np.random.random() * 2
         pred = np.random.random() * 4
-        Z_init = np.array([1, 1])#np.array([prey, pred])
+        Z_init = np.array([prey, pred]) #np.array([1, 1])#np.array([prey, pred])
         env.init_state = Z_init
         Z_history = np.expand_dims(Z_init, 0)
 
@@ -220,7 +220,6 @@ def run(env, algorithm):
         if algorithm == "reinforce":
             R = 0
         elif algorithm == "a2c":
-            action = actor.select_action(observation)
             R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
             print("R", R)
 
@@ -240,7 +239,7 @@ def run(env, algorithm):
     total_rewards = 0
     prey = np.random.random() * 2
     pred = np.random.random() * 4
-    Z_init = np.array([1, 1]) #np.array([prey, pred]) #np.array([1.0, 1.5])
+    Z_init = np.array([prey, pred]) #np.array([1, 1])  #np.array([1.0, 1.5])
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
     for i in range(max_step):#while not done:
@@ -265,6 +264,7 @@ def run(env, algorithm):
 
     print('reward', total_rewards)
 
+
     x = np.arange(0, 2,0.02)
     y = np.arange(0, 4,0.04)
     X, Y = np.meshgrid(x, y)
@@ -287,7 +287,27 @@ def run(env, algorithm):
     ax.set_ylabel("Predators")
     plt.savefig('./contour_plot.png')
 
+    returns = []
+    for i in x:
+        re_vec = []
+        for j in y:
+             observation = torch.tensor([i, j], dtype=torch.float)
+             action = actor.select_action(observation)
+             u = convert_to_vec(action)
+             obs, reward, _, _, _ = env.step(u)
+             observation = torch.tensor(obs, dtype=torch.float)
+             R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
+             re = discounted_rewards(rewards, R, gamma=0.9)
+             re_vec.append(re[0])
+        returns.append([re_vec])
 
+    returns = np.array(returns).reshape(100, 100)
+    fig, ax = plt.subplots()
+    CS = ax.contour(X, Y, returns)
+    ax.clabel(CS, inline=True, fontsize=10)
+    ax.set_xlabel("Prey")
+    ax.set_ylabel("Predators")
+    plt.savefig('./returns_plot.png')
 
     plt.figure(1)
     plt.cla()
@@ -332,8 +352,8 @@ def run(env, algorithm):
 N = 2 # number of species
 tau = 1
 dt = 1e-2
-#env = LotkaVolterraEnv(N, tau, dt)
-env = BrusselatorEnv(N, tau, dt)
+env = LotkaVolterraEnv(N, tau, dt)
+#env = BrusselatorEnv(N, tau, dt)
 
 
 #run(env, algorithm = "reinforce")
