@@ -1,4 +1,3 @@
-
 import numpy as np
 from matplotlib import pyplot as plt
 from env import LotkaVolterraEnv, BrusselatorEnv
@@ -160,12 +159,14 @@ def run(env, algorithm):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 1000
+    max_episode = 100
     n_episode = 0
     max_step = 100
     scores = []
     prob_list = []
-    R = 0
+    #R = 0
+    states_list = []
+    returns_list = []
     while n_episode < max_episode:
 
         print('starting training episode %d' % n_episode)
@@ -229,6 +230,9 @@ def run(env, algorithm):
         elif algorithm == "a2c":
             update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer)
 
+        for s in range(len(states)):
+            states_list.append(states[s].tolist())
+            returns_list.append(returns[s])
 
     #eval -- let's make this a separate function, analogous to 'run' but without any training or policy updating
     #done = False
@@ -287,27 +291,55 @@ def run(env, algorithm):
     ax.set_ylabel("Predators")
     plt.savefig('./contour_plot.png')
 
-    returns = []
+    '''
+    returns_arr = []
     for i in x:
-        re_vec = []
+        rewards = []
         for j in y:
-             observation = torch.tensor([i, j], dtype=torch.float)
-             action = actor.select_action(observation)
-             u = convert_to_vec(action)
-             obs, reward, _, _, _ = env.step(u)
-             observation = torch.tensor(obs, dtype=torch.float)
-             R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
-             re = discounted_rewards(rewards, R, gamma=0.9)
-             re_vec.append(re[0])
-        returns.append([re_vec])
+             #observation = torch.tensor([i, j], dtype=torch.float)
+             #action = actor.select_action(observation)
+             #u = convert_to_vec(action)
+             obs, reward, _, _, _ = env.step(np.array([0, 0]))
+             #observation = torch.tensor(obs, dtype=torch.float)
+             R = 0#R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
+             rewards.append(reward)
+        returns = discounted_rewards(rewards, R, gamma=0.9)
+        returns_arr.append(returns)
 
-    returns = np.array(returns).reshape(100, 100)
+    returns = np.array(returns_arr).reshape(100, 100)
     fig, ax = plt.subplots()
-    CS = ax.contour(X, Y, returns)
+    CS = ax.contour(X, Y, returns_arr)
     ax.clabel(CS, inline=True, fontsize=10)
     ax.set_xlabel("Prey")
     ax.set_ylabel("Predators")
     plt.savefig('./returns_plot.png')
+    '''
+
+
+
+    X = []
+    Y = []
+    for s in states_list:
+        X.append(s[0])
+        Y.append(s[1])
+
+    X = np.array(X)
+    Y = np.array(Y)
+    returns_list = np.array(returns_list)
+
+    fig, ax = plt.subplots()
+    ax.tricontour(X, Y, returns_list,20)  # choose 20 contour levels, just to show how good its interpolation is
+    ax.plot(X, Y)
+    ax.set_xlabel("Prey")
+    ax.set_ylabel("Predators")
+    plt.savefig('./returns.png')
+
+    fig, ax = plt.subplots()
+    ax.plot(Z_history[:, 0], (Z_history[:, 1]))
+    ax.set_xlabel("Prey")
+    ax.set_ylabel("Predators")
+    plt.savefig('./Z_history_contour_plot.png')
+
 
     plt.figure(1)
     plt.cla()
