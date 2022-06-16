@@ -160,7 +160,7 @@ def run(env, algorithm):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 1000
+    max_episode = 100
     n_episode = 0
     max_step = 100
     scores = []
