@@ -328,7 +328,7 @@ def run(env, algorithm):
     returns_list = np.array(returns_list)
 
     fig, ax = plt.subplots()
-    ax.tricontour(X, Y, returns_list,20)  # choose 20 contour levels, just to show how good its interpolation is
+    ax.tricontour(X, Y, returns_list,20)  
     ax.plot(X, Y)
     ax.set_xlabel("Prey")
     ax.set_ylabel("Predators")
