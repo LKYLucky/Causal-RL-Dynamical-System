@@ -144,6 +144,21 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     critic_loss.backward()
     critic_optimizer.step()
 
+def compute_theta(Z):
+    y1 = []
+    for z in Z[:, 0]:
+        y1.append(np.transpose([z,0]))
+
+    y1 = np.array(y1)
+
+    y2 = []
+    for z in Z[:, 1]:
+        y2.append(np.transpose([0,-z]))
+    y2 = np.array(y2)
+
+    y3 = np.array(np.transpose([- Z[:, 0]*Z[:, 1], Z[:, 0]*Z[:, 1]]))
+    theta = [y1,y2,y3]
+    return theta
 
 def run(env, algorithm):
     model = Model()
@@ -260,6 +275,9 @@ def run(env, algorithm):
             obs, reward, _, _, Z = env.step(action)
         else:
             obs, reward, _, _, Z = env.step(u)
+            
+        theta = compute_theta(Z)
+
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = torch.tensor(obs, dtype=torch.float)
         rewards.append(reward)
@@ -328,8 +346,11 @@ def run(env, algorithm):
     returns_list = np.array(returns_list)
 
     fig, ax = plt.subplots()
+
     z = ax.tricontour(X, Y, returns_list,20)  # choose 20 contour levels, just to show how good its interpolation is
     fig.colorbar(z)
+    ax.tricontour(X, Y, returns_list,20)  
+
     ax.plot(X, Y)
     ax.set_xlabel("Prey")
     ax.set_ylabel("Predators")
@@ -392,3 +413,4 @@ env = LotkaVolterraEnv(N, tau, dt)
 #run(env, algorithm = "reinforce")
 run(env, algorithm = "a2c")
 #run(env, algorithm = "optimal policy")
+
