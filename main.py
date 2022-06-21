@@ -2,7 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from env import LotkaVolterraEnv, BrusselatorEnv
 import torch
-
+import scipy.optimize as so
+from model import RateConstantModel
 
 # import torch.nn.functional as F
 # from stable_baselines.sac.policies import MlpPolicy
@@ -124,6 +125,7 @@ def update_policy_reinforce(states, actions, returns, model, optimizer):
 
 def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer):
     actor_loss, critic_loss = torch.zeros(1), torch.zeros(1)
+    #print("grrrrr",critic_loss)
 
     for s in range(len(states)):
         state, action, R = states[s], actions[s], returns[s]
@@ -135,7 +137,9 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
         actor_loss -= (policy.log_prob(action) * advantage)
         # loss for critic (MSE)
         critic_loss += torch.tensor(advantage, requires_grad=True).pow(2)
-
+         #if s == 0 or s == len(states) -1:
+        #print("state", s, "critic_loss",  critic_loss,"R", R, "value", value, "MSE",torch.tensor(advantage, requires_grad=True).pow(2))
+    #print("critic_loss", critic_loss)
     actor_optimizer.zero_grad()
     actor_loss.backward()
     actor_optimizer.step()
@@ -144,21 +148,7 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     critic_loss.backward()
     critic_optimizer.step()
 
-def compute_theta(Z):
-    y1 = []
-    for z in Z[:, 0]:
-        y1.append(np.transpose([z,0]))
 
-    y1 = np.array(y1)
-
-    y2 = []
-    for z in Z[:, 1]:
-        y2.append(np.transpose([0,-z]))
-    y2 = np.array(y2)
-
-    y3 = np.array(np.transpose([- Z[:, 0]*Z[:, 1], Z[:, 0]*Z[:, 1]]))
-    theta = [y1,y2,y3]
-    return theta
 
 def run(env, algorithm):
     model = Model()
@@ -188,7 +178,7 @@ def run(env, algorithm):
 
         prey = np.random.random() * 2
         pred = np.random.random() * 4
-        Z_init = np.array([prey, pred]) #np.array([1, 1])#np.array([prey, pred])
+        Z_init = np.array([prey, pred]) #np.array([1, 1])
         env.init_state = Z_init
         Z_history = np.expand_dims(Z_init, 0)
 
@@ -218,7 +208,7 @@ def run(env, algorithm):
                 obs, reward, _, _, Z = env.step(action)
             else:
                 obs, reward, _, _, Z = env.step(u)
-            print("state", observation, ", action", action, ", reward", reward)
+            #print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
             states.append(observation)
             actions.append(torch.tensor(action, dtype=torch.int))
@@ -237,7 +227,7 @@ def run(env, algorithm):
             R = 0
         elif algorithm == "a2c":
             R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
-            print("R", R)
+            #print("R", R)
 
         returns = discounted_rewards(rewards, R, gamma=0.9)
         if algorithm == "reinforce":
@@ -261,6 +251,9 @@ def run(env, algorithm):
     Z_init = np.array([prey, pred]) #np.array([1, 1])  #np.array([1.0, 1.5])
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
+
+    theta_arr = []
+    Z_arr = []
     for i in range(max_step):#while not done:
 
         if algorithm == "reinforce":
@@ -275,8 +268,12 @@ def run(env, algorithm):
             obs, reward, _, _, Z = env.step(action)
         else:
             obs, reward, _, _, Z = env.step(u)
-            
-        theta = compute_theta(Z)
+
+
+        rc_model = RateConstantModel()
+        theta = rc_model.compute_theta(Z)
+        theta_arr.append(theta)
+        Z_arr.append(Z)
 
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = torch.tensor(obs, dtype=torch.float)
@@ -333,6 +330,8 @@ def run(env, algorithm):
     plt.savefig('./returns_plot.png')
     '''
 
+    result = rc_model.solve_minimize(Z_arr, theta_arr)
+    print("result",result)
 
 
     X = []
