@@ -75,6 +75,12 @@ class Critic(torch.nn.Module):
     def forward(self, state):
         return self.net(state)
 
+def get_z_init():
+    prey = np.random.uniform(0.5, 1.5)
+    pred = np.random.uniform(1, 3)
+    Z_init = np.array([prey, pred])
+    return Z_init
+
 def optimal_policy(state,t):
     '''
     eps = 0.001
@@ -125,9 +131,8 @@ def update_policy_reinforce(states, actions, returns, model, optimizer):
 
 def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer):
     actor_loss, critic_loss = torch.zeros(1), torch.zeros(1)
-    #print("grrrrr",critic_loss)
 
-    for s in range(len(states)):
+    for s in range(len(states) -25): # get rid of last 25 states
         state, action, R = states[s], actions[s], returns[s]
         probs = actor(state)  # https://pytorch.org/docs/stable/distributions.html
         policy = torch.distributions.Categorical(probs=probs)
@@ -137,8 +142,8 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
         actor_loss -= (policy.log_prob(action) * advantage)
         # loss for critic (MSE)
         critic_loss += torch.tensor(advantage, requires_grad=True).pow(2)
-         #if s == 0 or s == len(states) -1:
-        #print("state", s, "critic_loss",  critic_loss,"R", R, "value", value, "MSE",torch.tensor(advantage, requires_grad=True).pow(2))
+        #print("step", s, "state", state, "critic_loss",  critic_loss.detach().numpy()[0],\
+             # "R", R, "value", value, "MSE",torch.tensor(advantage, requires_grad=True).pow(2).detach().numpy())
     #print("critic_loss", critic_loss)
     actor_optimizer.zero_grad()
     actor_loss.backward()
@@ -172,13 +177,17 @@ def run(env, algorithm):
     #R = 0
     states_list = []
     returns_list = []
+
+    rc_model = RateConstantModel()
     while n_episode < max_episode:
 
         print('starting training episode %d' % n_episode)
-
+        '''
         prey = np.random.random() * 2
         pred = np.random.random() * 4
         Z_init = np.array([prey, pred]) #np.array([1, 1])
+        '''
+        Z_init = get_z_init()
         env.init_state = Z_init
         Z_history = np.expand_dims(Z_init, 0)
 
@@ -246,9 +255,7 @@ def run(env, algorithm):
 
     rewards = []
     total_rewards = 0
-    prey = np.random.random() * 2
-    pred = np.random.random() * 4
-    Z_init = np.array([prey, pred]) #np.array([1, 1])  #np.array([1.0, 1.5])
+    Z_init = get_z_init()
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
 
@@ -270,10 +277,14 @@ def run(env, algorithm):
             obs, reward, _, _, Z = env.step(u)
 
 
-        rc_model = RateConstantModel()
+
         theta = rc_model.compute_theta(Z)
         theta_arr.append(theta)
         Z_arr.append(Z)
+        result = rc_model.solve_minimize(Z_arr, theta_arr)
+        rc_model.rates = result.x
+
+        print("result", result)
 
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = torch.tensor(obs, dtype=torch.float)
@@ -329,9 +340,10 @@ def run(env, algorithm):
     ax.set_ylabel("Predators")
     plt.savefig('./returns_plot.png')
     '''
-
+    '''
     result = rc_model.solve_minimize(Z_arr, theta_arr)
     print("result",result)
+    '''
 
 
     X = []
@@ -346,7 +358,7 @@ def run(env, algorithm):
 
     fig, ax = plt.subplots()
 
-    z = ax.tricontour(X, Y, returns_list,20)  # choose 20 contour levels, just to show how good its interpolation is
+    z = ax.tricontour(X, Y, returns_list,20)
     fig.colorbar(z)
     ax.tricontour(X, Y, returns_list,20)  
 
