@@ -9,7 +9,7 @@ class RateConstantModel():
         self.N = num_species
         self.R = num_reactions
         self.rates = [0.1, 0.05, 0.05]
-        #self.init_xi = np.zeros_like(self.rates)
+        self.init_xi = np.zeros_like(self.rates)
         self.method = method
         self.tol = tol
         self.approx_jac = approx_jac
@@ -34,7 +34,7 @@ class RateConstantModel():
         return theta
 
 
-    def elastic_net_func(self, propensities,  Z_arr, theta_arr, alpha, lamb):
+    def elastic_net_func(self, propensities,  Z_arr, theta_arr, dt, alpha, lamb):
 
         num_species = self.N
         num_reactions = self.R
@@ -45,14 +45,14 @@ class RateConstantModel():
         for i in range(len(theta_arr)):
             theta = theta_arr[i]
             time_steps = len(theta)
-            Z = Z_arr[i]
-            dZ = np.gradient(Z)  # Look into this later, returns an array of size 2x100x2, for now I just choose dZ[0]
+            Z = Z_arr[i] * int(1/dt)
+            dZ = np.gradient(Z)  # Look into this later, returns an array of size 2x100x2, for now I just choose dZ[0] ###dt = 0.01 hard code 100
             for t in range(time_steps):
-                    for s in range(num_species):
-                        x = dZ[0][t][s] #dZ
-                        for r in range(num_reactions):
-                            x -= propensities[r] * theta[t][r][s]
-                        result += x**2
+                for s in range(num_species):
+                    x = dZ[0][t][s] #dZ
+                    for r in range(num_reactions):
+                        x -= propensities[r] * theta[t][r][s]
+                    result += x**2
 
             total_time_steps += time_steps
 
@@ -109,9 +109,9 @@ class RateConstantModel():
 
 
 
-    def solve_minimize(self, Z_arr, theta_arr):
+    def solve_minimize(self, Z_arr, theta_arr, dt):
         def objective(x):
-            obj = self.elastic_net_func(x, Z_arr, theta_arr, self.alpha, self.lamb)
+            obj = self.elastic_net_func(x, Z_arr, theta_arr, dt, self.alpha, self.lamb)
             return obj
 
         jac = False if self.approx_jac else \
@@ -119,7 +119,7 @@ class RateConstantModel():
 
         result = so.minimize(
             objective,
-            x0=self.rates,
+            x0=self.init_xi,
             bounds=None,
             tol=self.tol,
             method=self.method,

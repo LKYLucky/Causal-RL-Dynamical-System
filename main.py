@@ -45,6 +45,8 @@ class Actor(torch.nn.Module):
         self.net = torch.nn.Sequential(
             torch.nn.Linear(env.observation_space.shape[0], 64),
             torch.nn.ReLU(),
+            torch.nn.Linear(64, 64),
+            torch.nn.ReLU(),
             torch.nn.Linear(64, env.action_space.n),
             torch.nn.Softmax(dim=-1)
         )
@@ -67,9 +69,11 @@ class Critic(torch.nn.Module):
     def __init__(self):
         super(Critic, self).__init__()
         self.net = torch.nn.Sequential(
-            torch.nn.Linear(env.observation_space.shape[0], 16),
+            torch.nn.Linear(env.observation_space.shape[0], 64),
             torch.nn.ReLU(),
-            torch.nn.Linear(16, 1)
+            torch.nn.Linear(64, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 1)
         )
 
     def forward(self, state):
@@ -108,7 +112,7 @@ def convert_to_vec(action):
 def discounted_rewards(rewards,R, gamma):
     returns = np.zeros_like(rewards)
     ### remove last 25 time steps
-    for t in reversed(range(len(rewards)-25)):
+    for t in reversed(range(len(rewards))):
         R = R * gamma + rewards[t]
         returns[t] = R
     return returns
@@ -154,6 +158,15 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     critic_optimizer.step()
 
 
+def find_rate_constants(Z, Z_arr, theta_arr, rc_model):
+    theta = rc_model.compute_theta(Z)
+    theta_arr.append(theta)
+    Z_arr.append(Z)
+
+    result = rc_model.solve_minimize(Z_arr, theta_arr, dt)
+    rc_model.rates = result.x
+
+    return result
 
 def run(env, algorithm):
     model = Model()
@@ -177,6 +190,9 @@ def run(env, algorithm):
     #R = 0
     states_list = []
     returns_list = []
+
+    theta_arr = []
+    Z_arr = []
 
     rc_model = RateConstantModel()
     while n_episode < max_episode:
@@ -217,6 +233,10 @@ def run(env, algorithm):
                 obs, reward, _, _, Z = env.step(action)
             else:
                 obs, reward, _, _, Z = env.step(u)
+
+            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
+            print("result", result)
+
             #print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
             states.append(observation)
@@ -276,14 +296,7 @@ def run(env, algorithm):
         else:
             obs, reward, _, _, Z = env.step(u)
 
-
-
-        theta = rc_model.compute_theta(Z)
-        theta_arr.append(theta)
-        Z_arr.append(Z)
-        result = rc_model.solve_minimize(Z_arr, theta_arr)
-        rc_model.rates = result.x
-
+        result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
         print("result", result)
 
         Z_history = np.concatenate((Z_history, Z), 0)
@@ -340,10 +353,7 @@ def run(env, algorithm):
     ax.set_ylabel("Predators")
     plt.savefig('./returns_plot.png')
     '''
-    '''
-    result = rc_model.solve_minimize(Z_arr, theta_arr)
-    print("result",result)
-    '''
+
 
 
     X = []
@@ -408,8 +418,6 @@ def run(env, algorithm):
     plt.savefig('./policy_probs.png')
 
     plt.show()
-
-
 
     exit()
     env.close()
