@@ -22,21 +22,11 @@ class LotkaVolterraEnv(gym.Env):
 
         self.init_state = init_state
         theta_lin = np.array([0.1, -0.05])  # np.ones((N,))
+        #
         theta_quad = np.zeros((num_species, num_species))
         theta_quad[0, 1] += -0.05
         theta_quad[1, 0] += 0.05
         self.theta = [theta_lin, theta_quad]  # there may be a better way to collectively denote the parameters
-
-    def f(self, Z, t):
-        # linear terms
-        Zdot = np.multiply(Z, self.theta[0])
-        # quadratic terms
-        Zdot += np.multiply(Z, np.einsum('ij,j->i', self.theta[1], Z))
-        # control terms
-
-        Zdot += self.u
-        # print("bruhhh", self.u)
-        return Zdot
 
 
     def f(self, Z, t, remove_u = False):
