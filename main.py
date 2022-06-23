@@ -122,14 +122,15 @@ def discounted_rewards(rewards,R, gamma):
 
 
 def update_policy_reinforce(states, actions, returns, model, optimizer):
-    loss = torch.zeros(1)
+    states = torch.tensor(states, dtype=torch.float)
+    actions = torch.tensor(actions, dtype=torch.int)
+    returns = torch.tensor(returns, dtype=torch.float)
 
-    for s in range(len(states)):
-        state, action, J = states[s], actions[s], returns[s]
-        probs = model(state)  # https://pytorch.org/docs/stable/distributions.html
-        m = torch.distributions.Categorical(probs=probs)
-        log_prob = m.log_prob(action)
-        loss -= log_prob * J
+
+    probs = model(states)  # https://pytorch.org/docs/stable/distributions.html
+    m = torch.distributions.Categorical(probs=probs)
+    log_prob = m.log_prob(actions)
+    loss = (-log_prob * returns).mean()
 
     optimizer.zero_grad()
     loss.backward()
@@ -138,30 +139,35 @@ def update_policy_reinforce(states, actions, returns, model, optimizer):
 
 
 def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer):
-    actor_loss, critic_loss = torch.zeros(1), torch.zeros(1)
-    for s in range(len(states)-25):
-        state, action, R = states[s], actions[s], returns[s]
-        probs = actor(state)  # https://pytorch.org/docs/stable/distributions.html
-        policy = torch.distributions.Categorical(probs=probs)
-        value = critic(state)#torch.IntTensor.item(critic(state))
+    states = torch.tensor(states, dtype=torch.float)
+    actions = torch.tensor(actions, dtype=torch.int)
+    returns = torch.tensor(returns, dtype=torch.float)
 
-        advantage = R - value
-        actor_loss -= (policy.log_prob(action) * advantage.detach())
+    probs = actor(states)  # https://pytorch.org/docs/stable/distributions.html
+    policy = torch.distributions.Categorical(probs=probs)
 
-        # loss for critic (MSE)
-        critic_loss += advantage.pow(2)
-        #print("step", s, "state", state, "critic_loss",  critic_loss.detach().numpy()[0],\
-        #"R", R, "value", value.detach().numpy()[0], "MSE",advantage.pow(2).detach().numpy()[0])
+    values = critic(states)
+    advantages = returns - torch.reshape(values, (-1,))
+    actor_loss = - (policy.log_prob(actions) * advantages.detach()).mean()
 
     actor_optimizer.zero_grad()
     actor_loss.backward()
     actor_optimizer.step()
 
+    critic_loss = advantages.pow(2).mean()
+
     # loss for critic (MSE)
 
     critic_optimizer.zero_grad()
     critic_loss.backward()
+
     critic_optimizer.step()
+
+    for name, param in actor.named_parameters():
+        print("actor", name, param.grad)
+
+    for name, param in critic.named_parameters():
+        print("critic", name, param.grad)
 
 
 def find_rate_constants(Z, Z_arr, theta_arr, rc_model):
@@ -217,7 +223,7 @@ def run(env, algorithm):
         states = []
         actions = []
         rewards = []
-        observation = torch.tensor(env.reset(), dtype=torch.float)
+        observation = env.reset()
         for i in range(max_step):
 
             if algorithm == "reinforce":
@@ -247,9 +253,10 @@ def run(env, algorithm):
             print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
             states.append(observation)
-            actions.append(torch.tensor(action, dtype=torch.int))
+            observation = obs
+            actions.append(action)
             rewards.append(reward)
-            observation = torch.tensor(obs, dtype=torch.float)
+
 
         x = torch.tensor([1, 2], dtype=torch.float)
         y = model.forward(x)
