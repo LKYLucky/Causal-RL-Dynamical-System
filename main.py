@@ -147,6 +147,7 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     policy = torch.distributions.Categorical(probs=probs)
 
     values = critic(states)
+
     advantages = returns - torch.reshape(values, (-1,))
     actor_loss = - (policy.log_prob(actions) * advantages.detach()).mean()
 
@@ -162,13 +163,13 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     critic_loss.backward()
 
     critic_optimizer.step()
-
+    '''
     for name, param in actor.named_parameters():
         print("actor", name, param.grad)
 
     for name, param in critic.named_parameters():
         print("critic", name, param.grad)
-
+    '''
 
 def find_rate_constants(Z, Z_arr, theta_arr, rc_model):
     theta = rc_model.compute_theta(Z)
@@ -228,6 +229,7 @@ def run(env, algorithm):
 
             if algorithm == "reinforce":
                 action = model.select_action(observation)
+                #action = 0
             elif algorithm == "a2c":
                 '''
                 if n_episode < max_episode: #do nothing for every episode for now
@@ -273,6 +275,9 @@ def run(env, algorithm):
             #print("R", R)
 
         returns = discounted_rewards(rewards, R, gamma=0.9)
+        states = states[:-25]
+        actions = actions[:-25]
+        returns = returns[:-25]
         if algorithm == "reinforce":
             update_policy_reinforce(states, actions, returns, model, optimizer)
         elif algorithm == "a2c":
@@ -344,6 +349,22 @@ def run(env, algorithm):
     ax.set_ylabel("Predators")
     plt.savefig('./Z_arr_contour_plot.png')
 
+    V = []
+    for i in x:
+        V_vec = []
+        for j in y:
+             obs = torch.tensor([i, j], dtype=torch.float)
+             val = critic(obs)
+             V_vec.append(val.detach().numpy())
+        V.append([V_vec])
+
+    V = np.array(V).reshape(100, 100)
+    fig, ax = plt.subplots()
+    CS = ax.contour(X, Y, V)
+    ax.clabel(CS, inline=True, fontsize=10)
+    ax.set_xlabel("Prey")
+    ax.set_ylabel("Predators")
+    plt.savefig('./Value_arr_contour_plot.png')
     '''
     returns_arr = []
     for i in x:
