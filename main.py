@@ -122,19 +122,23 @@ def discounted_rewards(rewards,R, gamma):
 
 
 def update_policy_reinforce(states, actions, returns, model, optimizer):
+    loss = torch.zeros(1)
+
     for s in range(len(states)):
         state, action, J = states[s], actions[s], returns[s]
         probs = model(state)  # https://pytorch.org/docs/stable/distributions.html
         m = torch.distributions.Categorical(probs=probs)
         log_prob = m.log_prob(action)
-        loss = -log_prob * J
+        loss -= log_prob * J
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
 
 
 def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer):
+    actor_loss, critic_loss = torch.zeros(1), torch.zeros(1)
     for s in range(len(states)-25):
         state, action, R = states[s], actions[s], returns[s]
         probs = actor(state)  # https://pytorch.org/docs/stable/distributions.html
@@ -142,17 +146,22 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
         value = critic(state)#torch.IntTensor.item(critic(state))
 
         advantage = R - value
-        actor_optimizer.zero_grad()
-        actor_loss = - (policy.log_prob(action) * advantage.detach())
-        actor_loss.backward()
-        actor_optimizer.step()
+        actor_loss -= (policy.log_prob(action) * advantage.detach())
 
         # loss for critic (MSE)
+        critic_loss += advantage.pow(2)
+        #print("step", s, "state", state, "critic_loss",  critic_loss.detach().numpy()[0],\
+        #"R", R, "value", value.detach().numpy()[0], "MSE",advantage.pow(2).detach().numpy()[0])
 
-        critic_optimizer.zero_grad()
-        critic_loss = advantage.pow(2)
-        critic_loss.backward()
-        critic_optimizer.step()
+    actor_optimizer.zero_grad()
+    actor_loss.backward()
+    actor_optimizer.step()
+
+    # loss for critic (MSE)
+
+    critic_optimizer.zero_grad()
+    critic_loss.backward()
+    critic_optimizer.step()
 
 
 def find_rate_constants(Z, Z_arr, theta_arr, rc_model):
@@ -220,7 +229,7 @@ def run(env, algorithm):
                 else:
                     action = actor.select_action(observation)
                 '''
-                action = actor.select_action(observation)
+                action = 0
                 #action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
