@@ -214,14 +214,13 @@ def run(env, algorithm):
             if algorithm == "reinforce":
                 action = model.select_action(observation)
             elif algorithm == "a2c":
-                action = 0
                 '''
                 if n_episode < max_episode: #do nothing for every episode for now
                     action = 0
                 else:
                     action = actor.select_action(observation)
                 '''
-                #action = actor.select_action(observation)
+                action = actor.select_action(observation)
                 #action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
