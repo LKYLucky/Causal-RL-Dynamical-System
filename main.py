@@ -80,9 +80,12 @@ class Critic(torch.nn.Module):
         return self.net(state)
 
 def get_z_init():
+    '''
     prey = np.random.uniform(0.5, 1.5)
     pred = np.random.uniform(1, 3)
     Z_init = np.array([prey, pred])
+    '''
+    Z_init = np.array([1,1])
     return Z_init
 
 def optimal_policy(state,t):
@@ -119,43 +122,37 @@ def discounted_rewards(rewards,R, gamma):
 
 
 def update_policy_reinforce(states, actions, returns, model, optimizer):
-    loss = torch.zeros(1)
-
     for s in range(len(states)):
         state, action, J = states[s], actions[s], returns[s]
         probs = model(state)  # https://pytorch.org/docs/stable/distributions.html
         m = torch.distributions.Categorical(probs=probs)
         log_prob = m.log_prob(action)
-        loss -= log_prob * J
+        loss = -log_prob * J
 
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
 
 def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer):
-    actor_loss, critic_loss = torch.zeros(1), torch.zeros(1)
-
-    for s in range(len(states) -25): # get rid of last 25 states
+    for s in range(len(states)-25):
         state, action, R = states[s], actions[s], returns[s]
         probs = actor(state)  # https://pytorch.org/docs/stable/distributions.html
         policy = torch.distributions.Categorical(probs=probs)
-        value = torch.IntTensor.item(critic(state))
+        value = critic(state)#torch.IntTensor.item(critic(state))
+
         advantage = R - value
+        actor_optimizer.zero_grad()
+        actor_loss = - (policy.log_prob(action) * advantage.detach())
+        actor_loss.backward()
+        actor_optimizer.step()
 
-        actor_loss -= (policy.log_prob(action) * advantage)
         # loss for critic (MSE)
-        critic_loss += torch.tensor(advantage, requires_grad=True).pow(2)
-        #print("step", s, "state", state, "critic_loss",  critic_loss.detach().numpy()[0],\
-             # "R", R, "value", value, "MSE",torch.tensor(advantage, requires_grad=True).pow(2).detach().numpy())
-    #print("critic_loss", critic_loss)
-    actor_optimizer.zero_grad()
-    actor_loss.backward()
-    actor_optimizer.step()
 
-    critic_optimizer.zero_grad()
-    critic_loss.backward()
-    critic_optimizer.step()
+        critic_optimizer.zero_grad()
+        critic_loss = advantage.pow(2)
+        critic_loss.backward()
+        critic_optimizer.step()
 
 
 def find_rate_constants(Z, Z_arr, theta_arr, rc_model):
@@ -184,7 +181,7 @@ def run(env, algorithm):
     # train
     max_episode = 100
     n_episode = 0
-    max_step = 100
+    max_step = 200
     scores = []
     prob_list = []
     #R = 0
@@ -217,12 +214,14 @@ def run(env, algorithm):
             if algorithm == "reinforce":
                 action = model.select_action(observation)
             elif algorithm == "a2c":
-
+                action = 0
+                '''
                 if n_episode < max_episode: #do nothing for every episode for now
                     action = 0
                 else:
                     action = actor.select_action(observation)
-
+                '''
+                #action = actor.select_action(observation)
                 #action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
@@ -234,10 +233,10 @@ def run(env, algorithm):
             else:
                 obs, reward, _, _, Z = env.step(u)
 
-            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
-            print("result", result)
+            #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
+            #print("result", result)
 
-            #print("state", observation, ", action", action, ", reward", reward)
+            print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
             states.append(observation)
             actions.append(torch.tensor(action, dtype=torch.int))
@@ -296,8 +295,8 @@ def run(env, algorithm):
         else:
             obs, reward, _, _, Z = env.step(u)
 
-        result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
-        print("result", result)
+        #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
+        #print("result", result)
 
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = torch.tensor(obs, dtype=torch.float)
@@ -328,7 +327,7 @@ def run(env, algorithm):
     ax.clabel(CS, inline=True, fontsize=10)
     ax.set_xlabel("Prey")
     ax.set_ylabel("Predators")
-    plt.savefig('./contour_plot.png')
+    plt.savefig('./Z_arr_contour_plot.png')
 
     '''
     returns_arr = []
@@ -344,7 +343,6 @@ def run(env, algorithm):
              rewards.append(reward)
         returns = discounted_rewards(rewards, R, gamma=0.9)
         returns_arr.append(returns)
-
     returns = np.array(returns_arr).reshape(100, 100)
     fig, ax = plt.subplots()
     CS = ax.contour(X, Y, returns_arr)
@@ -370,7 +368,7 @@ def run(env, algorithm):
 
     z = ax.tricontour(X, Y, returns_list,20)
     fig.colorbar(z)
-    ax.tricontour(X, Y, returns_list,20)  
+    ax.tricontour(X, Y, returns_list,20)
 
     ax.plot(X, Y)
     ax.set_xlabel("Prey")
@@ -432,4 +430,3 @@ env = LotkaVolterraEnv(N, tau, dt)
 #run(env, algorithm = "reinforce")
 run(env, algorithm = "a2c")
 #run(env, algorithm = "optimal policy")
-
