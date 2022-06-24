@@ -186,7 +186,7 @@ def run(env, algorithm):
     actor = Actor()
     critic = Critic()
 
-    lr = 0.01
+    lr = 0.0001
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=lr)
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=lr)
@@ -237,7 +237,7 @@ def run(env, algorithm):
                 else:
                     action = actor.select_action(observation)
                 '''
-                action = 0
+                action = 2
                 #action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
@@ -289,7 +289,7 @@ def run(env, algorithm):
 
     #eval -- let's make this a separate function, analogous to 'run' but without any training or policy updating
     #done = False
-    observation = torch.tensor(env.reset(), dtype=torch.float)
+    observation = env.reset()
     #env.render()
 
     rewards = []
@@ -305,7 +305,7 @@ def run(env, algorithm):
         if algorithm == "reinforce":
             action = model.select_action(observation)
         elif algorithm == "a2c":
-            action = actor.select_action(observation)
+            action = 2 #action = actor.select_action(observation)
         elif algorithm == "optimal policy":
             action = optimal_policy(observation, i)
 
@@ -319,7 +319,7 @@ def run(env, algorithm):
         #print("result", result)
 
         Z_history = np.concatenate((Z_history, Z), 0)
-        observation = torch.tensor(obs, dtype=torch.float)
+        observation = obs
         rewards.append(reward)
         total_rewards += reward
         #env.render()
