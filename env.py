@@ -21,8 +21,8 @@ class LotkaVolterraEnv(gym.Env):
         self.dt = dt
 
         self.init_state = init_state
-        theta_lin = np.array([0.1, -0.05])  # np.ones((N,))
         #
+        theta_lin = np.array([0.1, -0.05])  # np.ones((N,))
         theta_quad = np.zeros((num_species, num_species))
         theta_quad[0, 1] += -0.05
         theta_quad[1, 0] += 0.05
@@ -72,6 +72,8 @@ class LotkaVolterraEnv(gym.Env):
 
         # we assume z is observed with zero noise
         obs = self.state
+        ### I can only return 4 arguments for the baseline a2c
+        #return obs, reward, done, info
         return obs, reward, done, info, z
 
     def reset(self):
@@ -83,9 +85,13 @@ class LotkaVolterraEnv(gym.Env):
 class BrusselatorEnv(LotkaVolterraEnv):
 
     def f(self, Z, t):
-        k1 = 1
-        k2 = 1.7
+        A = 1
+        B = 1.7
+        k1 = 2
+        k2 = 2
+        k3 = 2
+        k4 = 2
         X, Y = Z
-        Zdot = [k1 + X**2*Y - k2*X - X, k2*X - X**2*Y]
+        Zdot = [k1*A + k2*X**2*Y - k3*B*X - k4*X, - k2*X**2*Y+ k3*B*X]
         Zdot += self.u
         return Zdot

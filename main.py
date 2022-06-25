@@ -195,9 +195,9 @@ def run(env, algorithm):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 100
+    max_episode = 10
     n_episode = 0
-    max_step = 200
+    max_step = 100
     scores = []
     prob_list = []
     #R = 0
@@ -207,7 +207,7 @@ def run(env, algorithm):
     theta_arr = []
     Z_arr = []
 
-    rc_model = RateConstantModel()
+    rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1])
     while n_episode < max_episode:
 
         print('starting training episode %d' % n_episode)
@@ -249,8 +249,8 @@ def run(env, algorithm):
             else:
                 obs, reward, _, _, Z = env.step(u)
 
-            #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
-            #print("result", result)
+            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
+            print("result", result)
 
             print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
@@ -315,8 +315,8 @@ def run(env, algorithm):
         else:
             obs, reward, _, _, Z = env.step(u)
 
-        #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
-        #print("result", result)
+        result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
+        print("result", result)
 
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = obs
@@ -459,8 +459,8 @@ def run(env, algorithm):
 N = 2 # number of species
 tau = 1
 dt = 1e-2
-env = LotkaVolterraEnv(N, tau, dt)
-#env = BrusselatorEnv(N, tau, dt)
+#env = LotkaVolterraEnv(N, tau, dt)
+env = BrusselatorEnv(N, tau, dt)
 
 
 #run(env, algorithm = "reinforce")
