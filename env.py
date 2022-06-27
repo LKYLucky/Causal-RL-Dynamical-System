@@ -5,7 +5,7 @@ import gym
 
 # we could generalize/modify this class to take a more generic ODE function as input, or generalise self.f(...)
 
-class LotkaVolterraEnv(gym.Env):
+class ODEBaseEnv(gym.Env):
 
     def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=np.array([1.0, 1.5])):
         # may need to add more here
@@ -27,17 +27,6 @@ class LotkaVolterraEnv(gym.Env):
         theta_quad[0, 1] += -0.05
         theta_quad[1, 0] += 0.05
         self.theta = [theta_lin, theta_quad]  # there may be a better way to collectively denote the parameters
-
-
-    def f(self, Z, t, remove_u = False):
-        # linear terms
-        Zdot = np.multiply(Z, self.theta[0])
-        # quadratic terms
-        Zdot += np.multiply(Z, np.einsum('ij,j->i', self.theta[1], Z))
-        # control terms
-        if not remove_u:
-            Zdot += self.u
-        return Zdot
 
 
     def compute_orth(self, Z, t):
@@ -82,15 +71,27 @@ class LotkaVolterraEnv(gym.Env):
 
         return self.state
 
-class BrusselatorEnv(LotkaVolterraEnv):
+class LotkaVolterraEnv(ODEBaseEnv):
+
+    def f(self, Z, t, remove_u = False):
+        # linear terms
+        Zdot = np.multiply(Z, self.theta[0])
+        # quadratic terms
+        Zdot += np.multiply(Z, np.einsum('ij,j->i', self.theta[1], Z))
+        # control terms
+        if not remove_u:
+            Zdot += self.u
+        return Zdot
+
+class BrusselatorEnv(ODEBaseEnv):
 
     def f(self, Z, t):
         A = 1
         B = 1.7
-        k1 = 2
-        k2 = 2
-        k3 = 2
-        k4 = 2
+        k1 = 1
+        k2 = 1
+        k3 = 1
+        k4 = 1
         X, Y = Z
         Zdot = [k1*A + k2*X**2*Y - k3*B*X - k4*X, - k2*X**2*Y+ k3*B*X]
         Zdot += self.u
