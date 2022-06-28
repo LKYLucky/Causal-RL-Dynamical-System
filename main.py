@@ -206,7 +206,8 @@ def run(env, algorithm):
     theta_arr = []
     Z_arr = []
 
-    rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1])
+    rc_model = RateConstantModel() #Lotka Volterra
+    #rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1]) #Brusselator
     while n_episode < max_episode:
 
         print('starting training episode %d' % n_episode)
@@ -236,8 +237,8 @@ def run(env, algorithm):
                 else:
                     action = actor.select_action(observation)
                 '''
-                action = 2
-                #action = actor.select_action(observation)
+                #action = 0
+                action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
 
@@ -304,7 +305,8 @@ def run(env, algorithm):
         if algorithm == "reinforce":
             action = model.select_action(observation)
         elif algorithm == "a2c":
-            action = 2 #action = actor.select_action(observation)
+            action = actor.select_action(observation)
+            #action = 0
         elif algorithm == "optimal policy":
             action = optimal_policy(observation, i)
 
@@ -458,10 +460,10 @@ def run(env, algorithm):
 N = 2 # number of species
 tau = 1
 dt = 1e-2
-#env = LotkaVolterraEnv(N, tau, dt)
-env = BrusselatorEnv(N, tau, dt)
+env = LotkaVolterraEnv(N, tau, dt)
+#env = BrusselatorEnv(N, tau, dt)
 
 
 #run(env, algorithm = "reinforce")
 run(env, algorithm = "a2c")
-#run(env, algorithm = "optimal policy")
+#run(env, algorithm = "optimal policy"))
