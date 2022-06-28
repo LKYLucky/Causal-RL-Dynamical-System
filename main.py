@@ -80,12 +80,12 @@ class Critic(torch.nn.Module):
         return self.net(state)
 
 def get_z_init():
-    '''
+
     prey = np.random.uniform(0.5, 1.5)
     pred = np.random.uniform(1, 3)
     Z_init = np.array([prey, pred])
-    '''
-    Z_init = np.array([1,1])
+
+    #Z_init = np.array([1,1])
     return Z_init
 
 def optimal_policy(state,t):
@@ -166,7 +166,6 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     '''
     for name, param in actor.named_parameters():
         print("actor", name, param.grad)
-
     for name, param in critic.named_parameters():
         print("critic", name, param.grad)
     '''
@@ -195,7 +194,7 @@ def run(env, algorithm):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 10
+    max_episode = 100
     n_episode = 0
     max_step = 100
     scores = []
@@ -249,8 +248,8 @@ def run(env, algorithm):
             else:
                 obs, reward, _, _, Z = env.step(u)
 
-            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
-            print("result", result)
+            #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
+            #print("result", result)
 
             print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
@@ -315,8 +314,8 @@ def run(env, algorithm):
         else:
             obs, reward, _, _, Z = env.step(u)
 
-        result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
-        print("result", result)
+        #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
+        #print("result", result)
 
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = obs
