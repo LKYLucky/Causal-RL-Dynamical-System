@@ -170,12 +170,11 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
         print("critic", name, param.grad)
     '''
 
-def find_rate_constants(Z, Z_arr, theta_arr, rc_model):
+def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action):
     theta = rc_model.compute_theta(Z)
     theta_arr.append(theta)
     Z_arr.append(Z)
-
-    result = rc_model.solve_minimize(Z_arr, theta_arr, dt)
+    result = rc_model.solve_minimize(Z_arr, theta_arr, dt,action)
     rc_model.rates = result.x
 
     return result
@@ -206,8 +205,8 @@ def run(env, algorithm):
     theta_arr = []
     Z_arr = []
 
-    rc_model = RateConstantModel() #Lotka Volterra
-    #rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1]) #Brusselator
+    rc_model = RateConstantModel()
+    #rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1])
     while n_episode < max_episode:
 
         print('starting training episode %d' % n_episode)
@@ -237,7 +236,7 @@ def run(env, algorithm):
                 else:
                     action = actor.select_action(observation)
                 '''
-                #action = 0
+                #action = 1
                 action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
@@ -249,8 +248,9 @@ def run(env, algorithm):
             else:
                 obs, reward, _, _, Z = env.step(u)
 
-            #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
-            #print("result", result)
+            #print("env.u",env.u)
+            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
+            print("result", result)
 
             print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
@@ -274,7 +274,7 @@ def run(env, algorithm):
             R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
             #print("R", R)
 
-        returns = discounted_rewards(rewards, R, gamma=0.9)
+        returns = discounted_rewards(rewards, R, gamma=0.4)
         states = states[:-25]
         actions = actions[:-25]
         returns = returns[:-25]
@@ -305,8 +305,8 @@ def run(env, algorithm):
         if algorithm == "reinforce":
             action = model.select_action(observation)
         elif algorithm == "a2c":
+            #action = 1
             action = actor.select_action(observation)
-            #action = 0
         elif algorithm == "optimal policy":
             action = optimal_policy(observation, i)
 
@@ -316,8 +316,8 @@ def run(env, algorithm):
         else:
             obs, reward, _, _, Z = env.step(u)
 
-        #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model)
-        #print("result", result)
+        result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
+        print("result", result)
 
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = obs
@@ -466,4 +466,4 @@ env = LotkaVolterraEnv(N, tau, dt)
 
 #run(env, algorithm = "reinforce")
 run(env, algorithm = "a2c")
-#run(env, algorithm = "optimal policy"))
+#run(env, algorithm = "optimal policy")

@@ -10,7 +10,7 @@ class RateConstantModel():
         self.N = num_species
         self.R = num_reactions
         self.rates = rates
-        self.init_xi = np.zeros_like(self.rates)
+        self.init_xi = rates#np.zeros_like(self.rates)
         self.method = method
         self.tol = tol
         self.approx_jac = approx_jac
@@ -19,7 +19,6 @@ class RateConstantModel():
 
     def compute_theta(self, Z):
         '''
-        ##Brusselator
         ##just hard coding A and B for now
         A = 1
         B = 1.7  ### remove hard code later
@@ -44,21 +43,23 @@ class RateConstantModel():
         y1 = [] #Lotka Volterra
         for z in Z[:, 0]:
             y1.append(np.transpose([z, 0])) 
+
         y1 = np.array(y1)
+
         y2 = []
         for z in Z[:, 1]:
             y2.append(np.transpose([0, -z])) 
         y2 = np.array(y2)
+
         y3 = np.array(np.transpose([- Z[:, 0] * Z[:, 1], Z[:, 0] * Z[:, 1]]))
         theta = np.transpose([y1, y2, y3], (1, 0, 2))
         return theta
 
 
-    def elastic_net_func(self, propensities, Z_arr, theta_arr, dt, alpha, lamb):
+    def elastic_net_func(self, propensities, Z_arr, theta_arr, dt, alpha, lamb, u):
 
         num_species = self.N
         num_reactions = self.R
-
         result = 0
         total_time_steps = 0
 
@@ -66,13 +67,13 @@ class RateConstantModel():
             theta = theta_arr[i]
             time_steps = len(theta)
             Z = Z_arr[i] * int(1 / dt)
-            dZ = np.gradient(
-                Z)  # Look into this later, returns an array of size 2x100x2, for now I just choose dZ[0] ###dt = 0.01 hard code 100
-            for t in range(time_steps):
+            dZ = np.gradient(Z)
+            for t in range(1, time_steps-1):#for t in range(time_steps):
                 for s in range(num_species):
-                    x = dZ[0][t][s]  # dZ
+                    x = dZ[0][t][s] - u[s]  # dZ
                     for r in range(num_reactions):
                         x -= propensities[r] * theta[t][r][s]
+
                     result += x ** 2
 
             total_time_steps += time_steps
@@ -96,7 +97,7 @@ class RateConstantModel():
 
         return result + regulator
 
-    def elastic_net_jac(self, propensities, Z_arr, theta_arr, dt, alpha, lamb):
+    def elastic_net_jac(self, propensities, Z_arr, theta_arr, dt, alpha, lamb,u):
 
         num_species = self.N
         num_reactions = self.R
@@ -108,13 +109,13 @@ class RateConstantModel():
             theta = theta_arr[i]
             time_steps = len(theta)
             Z = Z_arr[i] * int(1 / dt)
-            dZ = np.gradient(Z)  # Look into this later, returns an array of size 2x100x2, for now I just choose dZ[0]
+            dZ = np.gradient(Z)
             total_time_steps += time_steps
             for j in range(num_reactions):
 
                 for t in range(time_steps):
                     for s in range(num_species):
-                        x = dZ[0][t][s]  # dZ
+                        x = dZ[0][t][s] - u[s]     # dZ
                         theta_t_j_s = theta[t][j][s]
                         for r in range(num_reactions):
                             x -= propensities[r] * theta[t][r][s]
@@ -131,13 +132,13 @@ class RateConstantModel():
 
         return result
 
-    def solve_minimize(self, Z_arr, theta_arr, dt):
+    def solve_minimize(self, Z_arr, theta_arr, dt, u):
         def objective(x):
-            obj = self.elastic_net_func(x, Z_arr, theta_arr, dt, self.alpha, self.lamb)
+            obj = self.elastic_net_func(x, Z_arr, theta_arr, dt, self.alpha, self.lamb, u)
             return obj
 
         jac = False if self.approx_jac else \
-        lambda x: self.elastic_net_jac(x, Z_arr, theta_arr, dt,self.alpha, self.lamb)
+            lambda x: self.elastic_net_jac(x, Z_arr, theta_arr, dt, self.alpha, self.lamb, u)
 
         result = so.minimize(
             objective,
@@ -145,6 +146,6 @@ class RateConstantModel():
             bounds=None,
             tol=self.tol,
             method=self.method,
-            jac=jac,
+            jac=None,
             options=None)
         return result
