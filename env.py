@@ -44,7 +44,6 @@ class ODEBaseEnv(gym.Env):
 
         tt = np.linspace(0, self.tau, int(1 / self.dt))
         state_prev = self.state
-
         self.u = 0.1 * action
         z_init = self.state
         z = odeint(self.f, z_init, tt)
@@ -54,7 +53,10 @@ class ODEBaseEnv(gym.Env):
         # print("state_prev",state_prev,"state_curr",state_curr)
         ratio_optimal = 1
         # reward = 1 - (ratio_optimal - self.state[0]/self.state[1])**2
-        reward = -((state_prev - state_curr) ** 2).sum()
+        #reward = -((state_prev - state_curr) ** 2).sum()
+        #reward /= ((state_prev + state_curr) ** 2).sum()
+        reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
+        reward *= 1e3
         # reward = -(state_prev[0] - state_curr[0])**2-(state_prev[1] - state_curr[1])**2
         done = False  # indicates whether the episode is terminated; optional
         info = {}  # can be used in custom Gym environments; optional
@@ -95,4 +97,5 @@ class BrusselatorEnv(ODEBaseEnv):
         X, Y = Z
         Zdot = [k1*A + k2*X**2*Y - k3*B*X - k4*X, - k2*X**2*Y+ k3*B*X]
         Zdot += self.u
+
         return Zdot

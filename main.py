@@ -184,7 +184,7 @@ def run(env, algorithm):
     actor = Actor()
     critic = Critic()
 
-    lr = 0.0001
+    lr = 0.01
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     actor_optimizer = torch.optim.Adam(actor.parameters(), lr=lr)
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=lr)
@@ -193,7 +193,7 @@ def run(env, algorithm):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 100
+    max_episode = 400
     n_episode = 0
     max_step = 100
     scores = []
@@ -236,7 +236,7 @@ def run(env, algorithm):
                 else:
                     action = actor.select_action(observation)
                 '''
-                #action = 1
+                #action = 0
                 action = actor.select_action(observation)
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
@@ -249,8 +249,8 @@ def run(env, algorithm):
                 obs, reward, _, _, Z = env.step(u)
 
             #print("env.u",env.u)
-            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
-            print("result", result)
+            #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
+            #print("result", result)
 
             print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
@@ -305,7 +305,7 @@ def run(env, algorithm):
         if algorithm == "reinforce":
             action = model.select_action(observation)
         elif algorithm == "a2c":
-            #action = 1
+            #action = 0
             action = actor.select_action(observation)
         elif algorithm == "optimal policy":
             action = optimal_policy(observation, i)
@@ -316,8 +316,8 @@ def run(env, algorithm):
         else:
             obs, reward, _, _, Z = env.step(u)
 
-        result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
-        print("result", result)
+        #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
+        #print("result", result)
 
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = obs
