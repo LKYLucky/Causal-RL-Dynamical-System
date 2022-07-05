@@ -102,6 +102,12 @@ def optimal_policy(state,t):
     action = env.compute_orth(state,t)
     return action
 
+def uphill_policy(observation, critic):
+    state = torch.tensor(observation, dtype=torch.float, requires_grad=True)
+    critic(state).backward()
+    u = state.grad.detach().numpy()
+    return u
+
 def convert_to_vec(action):
     if action == 0:
         u = np.array([0, 0])
@@ -140,7 +146,7 @@ def update_policy_reinforce(states, actions, returns, model, optimizer):
 
 def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer):
     states = torch.tensor(states, dtype=torch.float)
-    actions = torch.tensor(actions, dtype=torch.int)
+    actions = torch.tensor(actions, dtype=torch.float)
     returns = torch.tensor(returns, dtype=torch.float)
 
     probs = actor(states)  # https://pytorch.org/docs/stable/distributions.html
@@ -149,8 +155,9 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     values = critic(states)
 
     advantages = returns - torch.reshape(values, (-1,))
+    #reward_t + \gamma*value(state_{t+1}) - value(state_t)’
     actor_loss = - (policy.log_prob(actions) * advantages.detach()).mean()
-
+    print("actor_loss",actor_loss)
     actor_optimizer.zero_grad()
     actor_loss.backward()
     actor_optimizer.step()
@@ -163,12 +170,7 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     critic_loss.backward()
 
     critic_optimizer.step()
-    '''
-    for name, param in actor.named_parameters():
-        print("actor", name, param.grad)
-    for name, param in critic.named_parameters():
-        print("critic", name, param.grad)
-    '''
+
 
 def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action):
     theta = rc_model.compute_theta(Z)
@@ -179,7 +181,7 @@ def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action):
 
     return result
 
-def run(env, algorithm):
+def run(env, algorithm, uphill):
     model = Model()
     actor = Actor()
     critic = Critic()
@@ -195,7 +197,7 @@ def run(env, algorithm):
     # train
     max_episode = 400
     n_episode = 0
-    max_step = 100
+    max_step = 200
     scores = []
     prob_list = []
     #R = 0
@@ -227,8 +229,10 @@ def run(env, algorithm):
         for i in range(max_step):
 
             if algorithm == "reinforce":
-                action = model.select_action(observation)
-                #action = 0
+                #action = model.select_action(observation)
+                action = 0
+                # d(critic) / d(state),
+
             elif algorithm == "a2c":
                 '''
                 if n_episode < max_episode: #do nothing for every episode for now
@@ -238,11 +242,20 @@ def run(env, algorithm):
                 '''
                 #action = 0
                 action = actor.select_action(observation)
+
+                state = torch.tensor(observation, dtype=torch.float, requires_grad=True)
+                #print("ss",state)
+                critic(state).backward()
+                #print("cc",critic(state))
+
+                u = state.grad.detach().numpy() * 0.1
+
             elif algorithm == "optimal policy":
                 action = optimal_policy(observation, i)
 
             # convert action to vectors (0,0),(0,1),(1,0)
-            u = convert_to_vec(action)
+            #u = convert_to_vec(action)
+
             if algorithm == "optimal policy":
                 obs, reward, _, _, Z = env.step(action)
             else:
@@ -252,7 +265,7 @@ def run(env, algorithm):
             #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
             #print("result", result)
 
-            print("state", observation, ", action", action, ", reward", reward)
+            #print("state", observation, ", action", action, ", reward", reward)
             Z_history = np.concatenate((Z_history, Z), 0)
             states.append(observation)
             observation = obs
@@ -272,7 +285,6 @@ def run(env, algorithm):
             R = 0
         elif algorithm == "a2c":
             R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
-            #print("R", R)
 
         returns = discounted_rewards(rewards, R, gamma=0.4)
         states = states[:-25]
@@ -305,12 +317,18 @@ def run(env, algorithm):
         if algorithm == "reinforce":
             action = model.select_action(observation)
         elif algorithm == "a2c":
-            #action = 0
-            action = actor.select_action(observation)
+
+            ###add this will make this another method
+            if uphill:
+                u = uphill_policy(observation, critic)
+            else:
+                action = actor.select_action(observation)
+
         elif algorithm == "optimal policy":
             action = optimal_policy(observation, i)
 
-        u = convert_to_vec(action)
+        if not uphill:
+            u = convert_to_vec(action)
         if algorithm == "optimal policy":
             obs, reward, _, _, Z = env.step(action)
         else:
@@ -465,5 +483,5 @@ env = LotkaVolterraEnv(N, tau, dt)
 
 
 #run(env, algorithm = "reinforce")
-run(env, algorithm = "a2c")
+run(env, algorithm = "a2c", uphill = True)
 #run(env, algorithm = "optimal policy")
