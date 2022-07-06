@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from env import LotkaVolterraEnv, BrusselatorEnv
+from env_model import LotkaVolterraEnvModel
 import torch
 import scipy.optimize as so
 from model import RateConstantModel
@@ -167,16 +168,16 @@ def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action):
     return result
 
 
-def run_one_episode(max_step, algorithm, model, actor, critic, uphill):
+def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphill):
     rewards = []
     states = []
     actions = []
 
     Z_init = get_z_init()
-    env.init_state = Z_init
+    env_option.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
 
-    observation = env.reset()
+    observation = env_option.reset()
     for i in range(max_step):  # while not done:
 
         if algorithm == "reinforce":
@@ -189,7 +190,7 @@ def run_one_episode(max_step, algorithm, model, actor, critic, uphill):
         if not uphill:
             u = convert_to_vec(action)
 
-        obs, reward, _, _, Z = env.step(u)
+        obs, reward, _, _, Z = env_option.step(u)
         Z_history = np.concatenate((Z_history, Z), 0)
         observation = obs
         rewards.append(reward)
@@ -198,7 +199,7 @@ def run_one_episode(max_step, algorithm, model, actor, critic, uphill):
 
     return rewards, states, observation, actions, Z_history, Z
 
-def run(env, algorithm, uphill):
+def run(env, env_model, algorithm, uphill):
     model = Model()
     actor = Actor()
     critic = Critic()
@@ -215,6 +216,7 @@ def run(env, algorithm, uphill):
     max_episode = 400
     n_episode = 0
     max_step = 200
+    N = 10
     scores = []
     prob_list = []
     states_list = []
@@ -231,15 +233,19 @@ def run(env, algorithm, uphill):
         print('starting training episode %d' % n_episode)
 
 
-        N = 10
         if n_episode % N == 0:
-            env.rate_constants = env.true_rates
+            env_option = env
+            env_option.rate_constants = [0.1, 0.05, 0.05]
         else:
+            env_option = env_model
+            env_option.rate_constants = estimated_rates
 
-            env.rate_constants = estimated_rates
+        #env.rate_constants = [0.1, 0.05, 0.05]
+        print("rate constant", env_option.rate_constants)
 
-        print("rate constant", env.rate_constants)
-        rewards, states, observation, actions, Z_history, Z = run_one_episode(max_step, algorithm, model, actor, critic, uphill)
+        rewards, states, observation, actions, Z_history, Z = run_one_episode(env_option,max_step, algorithm, model, actor, critic, uphill)
+
+
         result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
         estimated_rates = result.x.tolist()
 
@@ -276,7 +282,7 @@ def run(env, algorithm, uphill):
     Z_arr = []
 
 
-    rewards, states, observation, actions, Z_history, Z = run_one_episode(max_step, algorithm, model, actor, critic, uphill)
+    rewards, states, observation, actions, Z_history, Z = run_one_episode(env, max_step, algorithm, model, actor, critic, uphill)
     #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
     #print("result", result)
 
@@ -350,6 +356,7 @@ def run(env, algorithm, uphill):
 
     plt.figure(1)
     plt.cla()
+    scores = scores[::10]
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
@@ -390,9 +397,10 @@ N = 2 # number of species
 tau = 1
 dt = 1e-2
 env = LotkaVolterraEnv(N, tau, dt)
+env_model =  LotkaVolterraEnvModel(N, tau, dt)
 #env = BrusselatorEnv(N, tau, dt)
 
 
 #run(env, algorithm = "reinforce")
-run(env, algorithm = "a2c", uphill = True)
+run(env, env_model,  algorithm = "a2c", uphill = True)
 #run(env, algorithm = "optimal policy")
