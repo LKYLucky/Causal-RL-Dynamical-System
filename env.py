@@ -7,7 +7,7 @@ import gym
 
 class ODEBaseEnv(gym.Env):
 
-    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=np.array([0, 0])):
+    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=np.array([0, 0]), rate_constants = []):
         # may need to add more here
 
         low = np.zeros((num_species), dtype=np.float32)
@@ -21,15 +21,8 @@ class ODEBaseEnv(gym.Env):
         self.dt = dt
 
         self.init_state = init_state
+        self.rate_constants = rate_constants
 
-    def compute_orth(self, Z, t):
-        # linear terms
-        Zdot = self.f(Z, t, remove_u = True)
-        orth = np.empty_like(Zdot)
-        orth[0] = -Zdot[1]
-        orth[1] = Zdot[0]
-
-        return orth
 
     def step(self, action):
         'integrates the ODE system with a constant additive force vector (action)'
@@ -43,14 +36,10 @@ class ODEBaseEnv(gym.Env):
         self.state = z[-1]
         state_curr = self.state
 
-        # print("state_prev",state_prev,"state_curr",state_curr)
-        ratio_optimal = 1
-        # reward = 1 - (ratio_optimal - self.state[0]/self.state[1])**2
         #reward = -((state_prev - state_curr) ** 2).sum()
         #reward /= ((state_prev + state_curr) ** 2).sum()
         reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
         reward *= 1e3
-        # reward = -(state_prev[0] - state_curr[0])**2-(state_prev[1] - state_curr[1])**2
         done = False  # indicates whether the episode is terminated; optional
         info = {}  # can be used in custom Gym environments; optional
 
@@ -66,21 +55,21 @@ class ODEBaseEnv(gym.Env):
 
 class LotkaVolterraEnv(ODEBaseEnv):
 
-    def f(self, Z, t, remove_u = False):
-        '''
-        # linear terms
-        Zdot = np.multiply(Z, self.theta[0])
-        # quadratic terms
-        Zdot += np.multiply(Z, np.einsum('ij,j->i', self.theta[1], Z))
-        # control terms
-        '''
-        k1 = 0.1
-        k2 = 0.05
-        k3 = 0.05
+
+    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=np.array([0, 0]), rate_constants=[]):
+        super().__init__(num_species, time_interval_action, dt, init_state, rate_constants)
+        self.true_rates = [0.1, 0.05, 0.05]
+
+    def f(self, Z, t):
+
+        k1 = self.rate_constants[0]
+        k2 = self.rate_constants[1]
+        k3 = self.rate_constants[2]
+
         X, Y = Z
         Zdot = [k1 * X - k2 * X * Y, k2 * X * Y - k3 * Y]
-        if not remove_u:
-            Zdot += self.u
+
+        Zdot += self.u
         return Zdot
 
 class BrusselatorEnv(ODEBaseEnv):

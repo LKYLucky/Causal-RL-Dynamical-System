@@ -3,14 +3,14 @@ import scipy.optimize as so
 
 
 class RateConstantModel():
-    def __init__(self, num_species=2, num_reactions=3, rates=[0.1, 0.05, 0.05], alpha=0.0, lamb=1.0, method='SLSQP',
+    def __init__(self, num_species=2, num_reactions=3, rates=[], alpha=0.0, lamb=1.0, method='SLSQP',
                  tol=1e-16, approx_jac=False):
         self.alpha = alpha
         self.lamb = lamb
         self.N = num_species
         self.R = num_reactions
         self.rates = rates
-        self.init_xi = rates#np.zeros_like(self.rates)
+        self.init_xi = np.zeros_like(self.rates)
         self.method = method
         self.tol = tol
         self.approx_jac = approx_jac
