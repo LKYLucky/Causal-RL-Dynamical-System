@@ -7,7 +7,7 @@ import gym
 
 class ODEBaseEnv(gym.Env):
 
-    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=np.array([1.0, 1.5])):
+    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=np.array([0, 0])):
         # may need to add more here
 
         low = np.zeros((num_species), dtype=np.float32)
@@ -21,13 +21,6 @@ class ODEBaseEnv(gym.Env):
         self.dt = dt
 
         self.init_state = init_state
-        #
-        theta_lin = np.array([0.1, -0.05])  # np.ones((N,))
-        theta_quad = np.zeros((num_species, num_species))
-        theta_quad[0, 1] += -0.05
-        theta_quad[1, 0] += 0.05
-        self.theta = [theta_lin, theta_quad]  # there may be a better way to collectively denote the parameters
-
 
     def compute_orth(self, Z, t):
         # linear terms
@@ -63,24 +56,29 @@ class ODEBaseEnv(gym.Env):
 
         # we assume z is observed with zero noise
         obs = self.state
-        ### I can only return 4 arguments for the baseline a2c
-        #return obs, reward, done, info
         return obs, reward, done, info, z
 
     def reset(self):
         'resets the ODE system to initial conditions'
         self.state = self.init_state
-
+        #print("state", self.state)
         return self.state
 
 class LotkaVolterraEnv(ODEBaseEnv):
 
     def f(self, Z, t, remove_u = False):
+        '''
         # linear terms
         Zdot = np.multiply(Z, self.theta[0])
         # quadratic terms
         Zdot += np.multiply(Z, np.einsum('ij,j->i', self.theta[1], Z))
         # control terms
+        '''
+        k1 = 0.1
+        k2 = 0.05
+        k3 = 0.05
+        X, Y = Z
+        Zdot = [k1 * X - k2 * X * Y, k2 * X * Y - k3 * Y]
         if not remove_u:
             Zdot += self.u
         return Zdot

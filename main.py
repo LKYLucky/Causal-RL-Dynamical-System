@@ -88,24 +88,11 @@ def get_z_init():
     #Z_init = np.array([1,1])
     return Z_init
 
-def optimal_policy(state,t):
-    '''
-    eps = 0.001
-    if state[0]>state[1]+0.01:
-        action = 1
-    elif state[0]<state[1]-0.01:
-        action = 2
-    else:
-        action = 0
-    '''
-
-    action = env.compute_orth(state,t)
-    return action
 
 def uphill_policy(observation, critic):
     state = torch.tensor(observation, dtype=torch.float, requires_grad=True)
     critic(state).backward()
-    u = state.grad.detach().numpy()
+    u = state.grad.detach().numpy() * 0.1
     return u
 
 def convert_to_vec(action):
@@ -132,7 +119,6 @@ def update_policy_reinforce(states, actions, returns, model, optimizer):
     actions = torch.tensor(actions, dtype=torch.int)
     returns = torch.tensor(returns, dtype=torch.float)
 
-
     probs = model(states)  # https://pytorch.org/docs/stable/distributions.html
     m = torch.distributions.Categorical(probs=probs)
     log_prob = m.log_prob(actions)
@@ -155,7 +141,6 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     values = critic(states)
 
     advantages = returns - torch.reshape(values, (-1,))
-    #reward_t + \gamma*value(state_{t+1}) - value(state_t)’
     actor_loss = - (policy.log_prob(actions) * advantages.detach()).mean()
     print("actor_loss",actor_loss)
     actor_optimizer.zero_grad()
@@ -181,6 +166,38 @@ def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action):
 
     return result
 
+
+def run_one_episode(max_step, algorithm, model, actor, critic, uphill):
+    observation = env.reset()
+    rewards = []
+    states = []
+    actions = []
+
+    Z_init = get_z_init()
+    env.init_state = Z_init
+    Z_history = np.expand_dims(Z_init, 0)
+
+    for i in range(max_step):  # while not done:
+
+        if algorithm == "reinforce":
+            action = model.select_action(observation)
+        elif algorithm == "a2c":
+            action = actor.select_action(observation)
+            if uphill:
+                u = uphill_policy(observation, critic)
+
+        if not uphill:
+            u = convert_to_vec(action)
+
+        obs, reward, _, _, Z = env.step(u)
+        Z_history = np.concatenate((Z_history, Z), 0)
+        observation = obs
+        rewards.append(reward)
+        states.append(observation)
+        actions.append(action)
+
+    return rewards, states, observation, actions, Z_history, Z
+
 def run(env, algorithm, uphill):
     model = Model()
     actor = Actor()
@@ -200,7 +217,6 @@ def run(env, algorithm, uphill):
     max_step = 200
     scores = []
     prob_list = []
-    #R = 0
     states_list = []
     returns_list = []
 
@@ -212,71 +228,16 @@ def run(env, algorithm, uphill):
     while n_episode < max_episode:
 
         print('starting training episode %d' % n_episode)
-        '''
-        prey = np.random.random() * 2
-        pred = np.random.random() * 4
-        Z_init = np.array([prey, pred]) #np.array([1, 1])
-        '''
-        Z_init = get_z_init()
-        env.init_state = Z_init
-        Z_history = np.expand_dims(Z_init, 0)
 
-        # done = False
-        states = []
-        actions = []
-        rewards = []
-        observation = env.reset()
-        for i in range(max_step):
-
-            if algorithm == "reinforce":
-                #action = model.select_action(observation)
-                action = 0
-                # d(critic) / d(state),
-
-            elif algorithm == "a2c":
-                '''
-                if n_episode < max_episode: #do nothing for every episode for now
-                    action = 0
-                else:
-                    action = actor.select_action(observation)
-                '''
-                #action = 0
-                action = actor.select_action(observation)
-
-                state = torch.tensor(observation, dtype=torch.float, requires_grad=True)
-                #print("ss",state)
-                critic(state).backward()
-                #print("cc",critic(state))
-
-                u = state.grad.detach().numpy() * 0.1
-
-            elif algorithm == "optimal policy":
-                action = optimal_policy(observation, i)
-
-            # convert action to vectors (0,0),(0,1),(1,0)
-            #u = convert_to_vec(action)
-
-            if algorithm == "optimal policy":
-                obs, reward, _, _, Z = env.step(action)
-            else:
-                obs, reward, _, _, Z = env.step(u)
-
-            #print("env.u",env.u)
-            #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
-            #print("result", result)
-
-            #print("state", observation, ", action", action, ", reward", reward)
-            Z_history = np.concatenate((Z_history, Z), 0)
-            states.append(observation)
-            observation = obs
-            actions.append(action)
-            rewards.append(reward)
-
+        rewards, states, observation, actions, Z_history, Z = run_one_episode(max_step, algorithm, model, actor, critic, uphill)
+        #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
+        #print("result", result)
 
         x = torch.tensor([1, 2], dtype=torch.float)
         y = model.forward(x)
         y = y.tolist()
         prob_list.append(y)
+
         scores.append(sum(rewards))
         # prob_list.append([zero_prob, one_prob, two_prob])
         n_episode += 1
@@ -301,50 +262,13 @@ def run(env, algorithm, uphill):
 
     #eval -- let's make this a separate function, analogous to 'run' but without any training or policy updating
     #done = False
-    observation = env.reset()
-    #env.render()
-
-    rewards = []
-    total_rewards = 0
-    Z_init = get_z_init()
-    env.init_state = Z_init
-    Z_history = np.expand_dims(Z_init, 0)
-
     theta_arr = []
     Z_arr = []
-    for i in range(max_step):#while not done:
 
-        if algorithm == "reinforce":
-            action = model.select_action(observation)
-        elif algorithm == "a2c":
 
-            ###add this will make this another method
-            if uphill:
-                u = uphill_policy(observation, critic)
-            else:
-                action = actor.select_action(observation)
-
-        elif algorithm == "optimal policy":
-            action = optimal_policy(observation, i)
-
-        if not uphill:
-            u = convert_to_vec(action)
-        if algorithm == "optimal policy":
-            obs, reward, _, _, Z = env.step(action)
-        else:
-            obs, reward, _, _, Z = env.step(u)
-
-        #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model,env.u)
-        #print("result", result)
-
-        Z_history = np.concatenate((Z_history, Z), 0)
-        observation = obs
-        rewards.append(reward)
-        total_rewards += reward
-        #env.render()
-
-    print('reward', total_rewards)
-
+    rewards, states, observation, actions, Z_history, Z = run_one_episode(max_step, algorithm, model, actor, critic, uphill)
+    #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
+    #print("result", result)
 
     x = np.arange(0, 2,0.02)
     y = np.arange(0, 4,0.04)
@@ -384,29 +308,6 @@ def run(env, algorithm, uphill):
     ax.set_xlabel("Prey")
     ax.set_ylabel("Predators")
     plt.savefig('./Value_arr_contour_plot.png')
-    '''
-    returns_arr = []
-    for i in x:
-        rewards = []
-        for j in y:
-             #observation = torch.tensor([i, j], dtype=torch.float)
-             #action = actor.select_action(observation)
-             #u = convert_to_vec(action)
-             obs, reward, _, _, _ = env.step(np.array([0, 0]))
-             #observation = torch.tensor(obs, dtype=torch.float)
-             R = 0#R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
-             rewards.append(reward)
-        returns = discounted_rewards(rewards, R, gamma=0.9)
-        returns_arr.append(returns)
-    returns = np.array(returns_arr).reshape(100, 100)
-    fig, ax = plt.subplots()
-    CS = ax.contour(X, Y, returns_arr)
-    ax.clabel(CS, inline=True, fontsize=10)
-    ax.set_xlabel("Prey")
-    ax.set_ylabel("Predators")
-    plt.savefig('./returns_plot.png')
-    '''
-
 
 
     X = []
