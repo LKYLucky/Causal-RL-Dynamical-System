@@ -7,7 +7,7 @@ import gym
 
 class ODEBaseEnv(gym.Env):
 
-    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=np.array([0, 0]), rate_constants = []):
+    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=[], rate_constants = []):
         # may need to add more here
 
         low = np.zeros((num_species), dtype=np.float32)
@@ -56,7 +56,7 @@ class ODEBaseEnv(gym.Env):
 class LotkaVolterraEnv(ODEBaseEnv):
 
 
-    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=np.array([0, 0]), rate_constants=[]):
+    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=[], rate_constants=[]):
         super().__init__(num_species, time_interval_action, dt, init_state, rate_constants)
         self.true_rates = [0.1, 0.05, 0.05]
 

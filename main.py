@@ -168,7 +168,6 @@ def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action):
 
 
 def run_one_episode(max_step, algorithm, model, actor, critic, uphill):
-    observation = env.reset()
     rewards = []
     states = []
     actions = []
@@ -177,6 +176,7 @@ def run_one_episode(max_step, algorithm, model, actor, critic, uphill):
     env.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
 
+    observation = env.reset()
     for i in range(max_step):  # while not done:
 
         if algorithm == "reinforce":
@@ -225,25 +225,23 @@ def run(env, algorithm, uphill):
 
     rc_model = RateConstantModel(rates = [0.1,0.05,0.05])
     #rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1])
-    estimated_rates = []
+
     while n_episode < max_episode:
 
         print('starting training episode %d' % n_episode)
+
 
         N = 10
         if n_episode % N == 0:
             env.rate_constants = env.true_rates
         else:
-            print("estimated rate", estimated_rates)
+
             env.rate_constants = estimated_rates
 
-        #env.rate_constants = env.true_rates
+        print("rate constant", env.rate_constants)
         rewards, states, observation, actions, Z_history, Z = run_one_episode(max_step, algorithm, model, actor, critic, uphill)
         result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
         estimated_rates = result.x.tolist()
-
-        #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
-        #print("result", result)
 
         x = torch.tensor([1, 2], dtype=torch.float)
         y = model.forward(x)
