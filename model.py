@@ -4,7 +4,7 @@ import scipy.optimize as so
 
 class RateConstantModel():
     def __init__(self, num_species=2, num_reactions=3, rates=[], alpha=0.0, lamb=1.0, method='SLSQP',
-                 tol=1e-16, approx_jac=False, ODE_env = ''):
+                 tol=1e-16, approx_jac=False, ODE_env=''):
         self.alpha = alpha
         self.lamb = lamb
         self.N = num_species
@@ -35,7 +35,7 @@ class RateConstantModel():
             y3 = np.array(np.transpose([- Z[:, 0] * Z[:, 1], Z[:, 0] * Z[:, 1]]))
             theta = np.transpose([y1, y2, y3], (1, 0, 2))
 
-        elif self.ODE_env == "Brusselators":
+        elif self.ODE_env == "Brusselator":
             ##just hard coding A and B for now
             A = 1
             B = 1.7  ### remove hard code later
@@ -50,8 +50,7 @@ class RateConstantModel():
                 y4.append(np.transpose([-X, 0]))
             y4 = np.array(y4)
             theta = np.transpose([y1, y2, y3, y4], (1, 0, 2))
-            # print("y4",y4)
-            # print("theta",theta.shape)
+
         return theta
 
     def elastic_net_func(self, propensities, Z_arr, theta_arr, dt, alpha, lamb, u):
@@ -66,7 +65,7 @@ class RateConstantModel():
             time_steps = len(theta)
             Z = Z_arr[i] * int(1 / dt)
             dZ = np.gradient(Z)
-            for t in range(1, time_steps-1):#for t in range(time_steps):
+            for t in range(1, time_steps - 1):  # for t in range(time_steps):
                 for s in range(num_species):
                     x = dZ[0][t][s] - u[s]  # dZ
                     for r in range(num_reactions):
@@ -95,7 +94,7 @@ class RateConstantModel():
 
         return result + regulator
 
-    def elastic_net_jac(self, propensities, Z_arr, theta_arr, dt, alpha, lamb,u):
+    def elastic_net_jac(self, propensities, Z_arr, theta_arr, dt, alpha, lamb, u):
 
         num_species = self.N
         num_reactions = self.R
@@ -113,7 +112,7 @@ class RateConstantModel():
 
                 for t in range(time_steps):
                     for s in range(num_species):
-                        x = dZ[0][t][s] - u[s]     # dZ
+                        x = dZ[0][t][s] - u[s]  # dZ
                         theta_t_j_s = theta[t][j][s]
                         for r in range(num_reactions):
                             x -= propensities[r] * theta[t][r][s]

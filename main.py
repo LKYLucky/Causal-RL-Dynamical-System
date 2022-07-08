@@ -167,7 +167,6 @@ def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action):
 
     return result
 
-
 def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model, calc_rate):
 
     states = []
@@ -191,25 +190,25 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         if not uphill:
             u = convert_to_vec(action)
 
-        obs, reward, _, _, Z = env.step(u)
+        obs, reward, _, _, Z = env_option.step(u)
         Z_history = np.concatenate((Z_history, Z), 0)
         states.append(observation)
         observation = obs
         actions.append(action)
         rewards.append(reward)
 
-        if calc_rate and i==0:
-            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
+        if calc_rate and i == 0:
+            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u)
             estimated_rates = result.x.tolist()
             print(estimated_rates)
-            #print(estimated_rates)
 
-    '''
-    result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
-    estimated_rates = result.x.tolist()
-    print(estimated_rates)
-    '''
+
     if calc_rate:
+        '''
+        result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u)
+        estimated_rates = result.x.tolist()
+        print(estimated_rates)
+        '''
         return rewards, states, observation, actions, Z_history, Z, estimated_rates
     else:
         return rewards, states, observation, actions, Z_history, Z
@@ -270,8 +269,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
                                                                                                    algorithm, model,
                                                                                                    actor, critic,
                                                                                                    uphill, Z_arr,
-                                                                                                   theta_arr, rc_model,
-                                                                                                   False)
+                                                                                                   theta_arr, rc_model, False)
 
         #env.rate_constants = [0.1, 0.05, 0.05]
         print("rate constant", env_option.rate_constants)
@@ -425,6 +423,7 @@ tau = 1
 dt = 1e-2
 
 ODE_env = "LV"
+#ODE_env = "Brusselator"
 if ODE_env == "LV":
     env = LotkaVolterraEnv(N, tau, dt)
     env_model =  LotkaVolterraEnvModel(N, tau, dt)
