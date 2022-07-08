@@ -18,7 +18,7 @@ class RateConstantModel():
 
         # self.rates
 
-    def compute_theta(self, Z):
+    def compute_theta(self, Z, species_constant):
 
         if self.ODE_env == "LV":
             y1 = []  # Lotka Volterra
@@ -36,9 +36,13 @@ class RateConstantModel():
             theta = np.transpose([y1, y2, y3], (1, 0, 2))
 
         elif self.ODE_env == "Brusselator":
+
             ##just hard coding A and B for now
-            A = 1
-            B = 1.7  ### remove hard code later
+            #A = 1
+            #B = 3  ### remove hard code later
+            A = species_constant[0]
+            B = species_constant[1]
+
             y1 = []
             for i in range(len(Z[:, 0])):
                 y1.append(np.transpose([A, 0]))

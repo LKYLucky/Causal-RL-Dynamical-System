@@ -54,6 +54,7 @@ class ODEBaseEnv(gym.Env):
 class LotkaVolterraEnv(ODEBaseEnv):
 
     def f(self, Z, t):
+        self.species_constants = []
         #self.rate_constants = [0.1, 0.05, 0.05]
         k1 = self.rate_constants[0]
         k2 = self.rate_constants[1]
@@ -68,8 +69,12 @@ class LotkaVolterraEnv(ODEBaseEnv):
 class BrusselatorEnv(ODEBaseEnv):
 
     def f(self, Z, t):
-        A = 1
-        B = 1.7
+        #A = 1
+        #B = 3
+        self.species_constants = [1, 1.7]
+        A = self.species_constants[0]
+        B = self.species_constants[1]
+
         k1 = self.rate_constants[0]
         k2 = self.rate_constants[1]
         k3 = self.rate_constants[2]
