@@ -36,8 +36,6 @@ class ODEBaseEnv(gym.Env):
         self.state = z[-1]
         state_curr = self.state
 
-        #reward = -((state_prev - state_curr) ** 2).sum()
-        #reward /= ((state_prev + state_curr) ** 2).sum()
         reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
         reward *= 1e3
         done = False  # indicates whether the episode is terminated; optional
@@ -55,13 +53,8 @@ class ODEBaseEnv(gym.Env):
 
 class LotkaVolterraEnv(ODEBaseEnv):
 
-
-    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=[], rate_constants=[]):
-        super().__init__(num_species, time_interval_action, dt, init_state, rate_constants)
-        self.true_rates = [0.1, 0.05, 0.05]
-
     def f(self, Z, t):
-
+        #self.rate_constants = [0.1, 0.05, 0.05]
         k1 = self.rate_constants[0]
         k2 = self.rate_constants[1]
         k3 = self.rate_constants[2]
@@ -77,10 +70,11 @@ class BrusselatorEnv(ODEBaseEnv):
     def f(self, Z, t):
         A = 1
         B = 1.7
-        k1 = 1
-        k2 = 1
-        k3 = 1
-        k4 = 1
+        k1 = self.rate_constants[0]
+        k2 = self.rate_constants[1]
+        k3 = self.rate_constants[2]
+        k4 = self.rate_constants[3]
+
         X, Y = Z
         Zdot = [k1*A + k2*X**2*Y - k3*B*X - k4*X, - k2*X**2*Y+ k3*B*X]
         Zdot += self.u

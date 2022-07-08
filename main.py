@@ -168,7 +168,7 @@ def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action):
     return result
 
 
-def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model):
+def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model, calc_rate):
 
     states = []
     actions = []
@@ -198,9 +198,10 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         actions.append(action)
         rewards.append(reward)
 
-        if i==0:
+        if calc_rate and i==0:
             result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
             estimated_rates = result.x.tolist()
+            print(estimated_rates)
             #print(estimated_rates)
 
     '''
@@ -208,10 +209,12 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
     estimated_rates = result.x.tolist()
     print(estimated_rates)
     '''
+    if calc_rate:
+        return rewards, states, observation, actions, Z_history, Z, estimated_rates
+    else:
+        return rewards, states, observation, actions, Z_history, Z
 
-    return rewards, states, observation, actions, Z_history, Z, estimated_rates
-
-def run(env, env_model, algorithm, uphill):
+def run(env, env_model, ODE_env, algorithm, uphill):
     model = Model()
     actor = Actor()
     critic = Critic()
@@ -227,7 +230,7 @@ def run(env, env_model, algorithm, uphill):
     # train
     max_episode = 200
     n_episode = 0
-    max_step = 100
+    max_step =200
     N = 10
     scores = []
     prob_list = []
@@ -237,8 +240,10 @@ def run(env, env_model, algorithm, uphill):
     theta_arr = []
     Z_arr = []
 
-    #rc_model = RateConstantModel(rates = [0.1,0.05,0.05])
-    rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1])
+    if ODE_env == "LV":
+        rc_model = RateConstantModel(rates = [0.1,0.05,0.05], ODE_env = "LV")
+    elif ODE_env == "Brusselator":
+        rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1], ODE_env = "Brusselator")
 
     while n_episode < max_episode:
 
@@ -247,16 +252,29 @@ def run(env, env_model, algorithm, uphill):
 
         if n_episode % N == 0:
             env_option = env
-            #env_option.rate_constants = [0.1, 0.05, 0.05] #LV
-            env_option.rate_constants = [1, 1, 1, 1] #Brusselator
+            if ODE_env == "LV":
+                env_option.rate_constants = [0.1, 0.05, 0.05] #LV
+            elif ODE_env == "Brusselator":
+                env_option.rate_constants = [1, 1, 1, 1] #Brusselator
+
+            rewards, states, observation, actions, Z_history, Z, estimated_rates = run_one_episode(env_option, max_step,
+                                                                                                   algorithm, model,
+                                                                                                   actor, critic,
+                                                                                                   uphill, Z_arr,
+                                                                                                   theta_arr, rc_model, True)
+
         else:
             env_option = env_model
             env_option.rate_constants = estimated_rates
+            rewards, states, observation, actions, Z_history, Z = run_one_episode(env_option, max_step,
+                                                                                                   algorithm, model,
+                                                                                                   actor, critic,
+                                                                                                   uphill, Z_arr,
+                                                                                                   theta_arr, rc_model,
+                                                                                                   False)
 
         #env.rate_constants = [0.1, 0.05, 0.05]
         print("rate constant", env_option.rate_constants)
-
-        rewards, states, observation, actions, Z_history, Z, estimated_rates = run_one_episode(env_option,max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model)
 
         x = torch.tensor([1, 2], dtype=torch.float)
         y = model.forward(x)
@@ -291,7 +309,7 @@ def run(env, env_model, algorithm, uphill):
     Z_arr = []
 
 
-    rewards, states, observation, actions, Z_history, Z, estimated_rates= run_one_episode(env, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model)
+    rewards, states, observation, actions, Z_history, Z= run_one_episode(env, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model, False)
     #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
     #print("result", result)
 
@@ -405,12 +423,16 @@ def run(env, env_model, algorithm, uphill):
 N = 2 # number of species
 tau = 1
 dt = 1e-2
-#env = LotkaVolterraEnv(N, tau, dt)
-#env_model =  LotkaVolterraEnvModel(N, tau, dt)
-env = BrusselatorEnv(N, tau, dt)
-env_model = BrusselatorEnvModel(N, tau, dt)
+
+ODE_env = "LV"
+if ODE_env == "LV":
+    env = LotkaVolterraEnv(N, tau, dt)
+    env_model =  LotkaVolterraEnvModel(N, tau, dt)
+elif ODE_env == "Brusselator":
+    env = BrusselatorEnv(N, tau, dt)
+    env_model = BrusselatorEnvModel(N, tau, dt)
 
 
 #run(env, algorithm = "reinforce")
-run(env, env_model,  algorithm = "a2c", uphill = True)
+run(env, env_model, ODE_env, algorithm = "a2c", uphill = True)
 #run(env, algorithm = "optimal policy")
