@@ -248,23 +248,21 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
         print('starting training episode %d' % n_episode)
 
+        if ODE_env == "LV":
+            env.rate_constants = [0.1, 0.05, 0.05]  # LV
+        elif ODE_env == "Brusselator":
+            env.rate_constants = [1, 1, 1, 1]  # Brusselator
 
         if n_episode % N == 0:
             env_option = env
-            if ODE_env == "LV":
-                env_option.rate_constants = [0.1, 0.05, 0.05] #LV
-            elif ODE_env == "Brusselator":
-                env_option.rate_constants = [1, 1, 1, 1] #Brusselator
-
             rewards, states, observation, actions, Z_history, Z, estimated_rates = run_one_episode(env_option, max_step,
                                                                                                    algorithm, model,
                                                                                                    actor, critic,
                                                                                                    uphill, Z_arr,
                                                                                                    theta_arr, rc_model, True)
-
+            env_model.rate_constants = estimated_rates
         else:
             env_option = env_model
-            env_option.rate_constants = estimated_rates
             rewards, states, observation, actions, Z_history, Z = run_one_episode(env_option, max_step,
                                                                                                    algorithm, model,
                                                                                                    actor, critic,
