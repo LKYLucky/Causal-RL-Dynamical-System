@@ -82,6 +82,6 @@ class BrusselatorEnv(ODEBaseEnv):
 
         X, Y = Z
         Zdot = [k1*A + k2*X**2*Y - k3*B*X - k4*X, - k2*X**2*Y+ k3*B*X]
-        Zdot += self.u
+        Zdot += 0.1* self.u
 
         return Zdot
