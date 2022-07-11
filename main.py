@@ -178,6 +178,7 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
     Z_history = np.expand_dims(Z_init, 0)
 
     observation = env_option.reset()
+    rc_list = []
     for i in range(max_step):  # while not done:
 
         if algorithm == "reinforce":
@@ -201,7 +202,7 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         actions.append(action)
         rewards.append(reward)
 
-        rc_list = []
+
         if calc_rate: #updating every 10 time steps
             result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u, env.species_constants)
             estimated_rates = result.x.tolist()
@@ -209,7 +210,7 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
 
             rc_list.append(estimated_rates)
 
-        print(rc_list)
+    print(rc_list)
     if calc_rate:
         '''
         result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u)

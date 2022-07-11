@@ -10,7 +10,7 @@ class RateConstantModel():
         self.N = num_species
         self.R = num_reactions
         self.rates = rates
-        #self.init_xi = np.zeros_like(self.rates)
+        self.init_xi = np.zeros_like(self.rates)
         self.method = method
         self.tol = tol
         self.approx_jac = approx_jac
@@ -149,5 +149,4 @@ class RateConstantModel():
             method=self.method,
             jac=None,
             options=None)
-
         return result
