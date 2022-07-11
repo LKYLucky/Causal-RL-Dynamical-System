@@ -209,7 +209,7 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
 
             rc_list.append(estimated_rates)
 
-    print(rc_list)
+        print(rc_list)
     if calc_rate:
         '''
         result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u)
