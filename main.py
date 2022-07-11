@@ -190,17 +190,26 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         if not uphill:
             u = convert_to_vec(action)
 
-        obs, reward, _, _, Z = env_option.step(u)
+        obs, reward, _, _, Z = env_option.step(u) ##add gaussian noise
+        mu, sigma = 0, 0.05  # mean and standard deviation
+        s = np.random.normal(mu, sigma)
+        Z = Z+s
+
         Z_history = np.concatenate((Z_history, Z), 0)
         states.append(observation)
         observation = obs
         actions.append(action)
         rewards.append(reward)
 
-        if calc_rate and i == 0:
+        rc_list = []
+        if calc_rate: #updating every 10 time steps
             result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u, env.species_constants)
             estimated_rates = result.x.tolist()
+            print("time step", i, " estimated_rates", estimated_rates)
 
+            rc_list.append(estimated_rates)
+
+    print(rc_list)
     if calc_rate:
         '''
         result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u)
@@ -227,7 +236,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     # train
     max_episode = 200
     n_episode = 0
-    max_step =200
+    max_step =100
     N = 10
     scores = []
     prob_list = []
@@ -238,9 +247,9 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     Z_arr = []
     '''
     if ODE_env == "LV":
-        rc_model = RateConstantModel(rates = [0.1,0.05,0.05], ODE_env = "LV")
+        rc_model = RateConstantModel(rates = [0, 0, 0], ODE_env = "LV")
     elif ODE_env == "Brusselator":
-        rc_model = RateConstantModel(num_reactions=4, rates = [1,1,1,1], ODE_env = "Brusselator")
+        rc_model = RateConstantModel(num_reactions=4, rates = [0, 0, 0, 0], ODE_env = "Brusselator")
 
     while n_episode < max_episode:
         theta_arr = []
@@ -418,8 +427,8 @@ N = 2 # number of species
 tau = 1
 dt = 1e-2
 
-#ODE_env = "LV"
-ODE_env = "Brusselator"
+ODE_env = "LV"
+#ODE_env = "Brusselator"
 if ODE_env == "LV":
     env = LotkaVolterraEnv(N, tau, dt)
     env_model =  LotkaVolterraEnvModel(N, tau, dt)
