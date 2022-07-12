@@ -130,7 +130,6 @@ def update_policy_reinforce(states, actions, returns, model, optimizer):
     optimizer.step()
 
 
-
 def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer):
     states = torch.tensor(states, dtype=torch.float)
     actions = torch.tensor(actions, dtype=torch.float)
@@ -161,7 +160,9 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
 def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action,species_constants):
     theta = rc_model.compute_theta(Z, species_constants)
     theta_arr.append(theta)
+    #theta_arr = [theta]
     Z_arr.append(Z)
+    #Z_arr = [Z]
     result = rc_model.solve_minimize(Z_arr, theta_arr, dt,action)
     rc_model.rates = result.x
 
@@ -192,9 +193,11 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
             u = convert_to_vec(action)
 
         obs, reward, _, _, Z = env_option.step(u) ##add gaussian noise
-        mu, sigma = 0, 0.05  # mean and standard deviation
-        s = np.random.normal(mu, sigma)
-        Z = Z+s
+        for j in range(len(Z)):
+            mu, sigma = 0, 0.01  # mean and standard deviation
+            s = np.random.normal(mu, sigma)
+            Z[j] = Z[j]+s
+
 
         Z_history = np.concatenate((Z_history, Z), 0)
         states.append(observation)
@@ -204,13 +207,13 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
 
 
         if calc_rate: #updating every 10 time steps
-            result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u, env.species_constants)
+            result = find_rate_constants(Z,Z_arr, theta_arr, rc_model, env_option.u, env.species_constants)
             estimated_rates = result.x.tolist()
-            print("time step", i, " estimated_rates", estimated_rates)
+            print("time step", i," estimated_rates", estimated_rates)
 
-            rc_list.append(estimated_rates)
+            #rc_list.append(estimated_rates)
 
-    print(rc_list)
+    #print(rc_list)
     if calc_rate:
         '''
         result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u)
@@ -272,8 +275,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         rewards, states, observation, actions, Z_history, Z, estimated_rates = run_one_episode(env_option, max_step,
                                                                                                algorithm, model,
                                                                                                actor, critic,
-                                                                                               uphill, Z_arr,
-                                                                                               theta_arr, rc_model, calc_rate)
+                                                                                               uphill, Z_arr, theta_arr, rc_model, calc_rate)
 
         if n_episode % N == 0:
             env_model.rate_constants = estimated_rates
