@@ -160,9 +160,14 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
 def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action,species_constants):
     theta = rc_model.compute_theta(Z, species_constants)
     theta_arr.append(theta)
-    #theta_arr = [theta]
     Z_arr.append(Z)
+
+    #theta_arr = [theta] #only keep current value
     #Z_arr = [Z]
+
+    if len(Z_arr) > 10:
+        theta_arr = theta_arr[-10:]
+        Z_arr = Z_arr[-10:]
     result = rc_model.solve_minimize(Z_arr, theta_arr, dt,action)
     rc_model.rates = result.x
 
@@ -194,7 +199,7 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
 
         obs, reward, _, _, Z = env_option.step(u) ##add gaussian noise
         for j in range(len(Z)):
-            mu, sigma = 0, 0.01  # mean and standard deviation
+            mu, sigma = 0, 0.001  # mean and standard deviation
             s = np.random.normal(mu, sigma)
             Z[j] = Z[j]+s
 
