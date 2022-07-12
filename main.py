@@ -157,17 +157,16 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     critic_optimizer.step()
 
 
-def find_rate_constants(Z, Z_arr, theta_arr, rc_model,action,species_constants):
-    theta = rc_model.compute_theta(Z, species_constants)
-    theta_arr.append(theta)
-    Z_arr.append(Z)
+def find_rate_constants(Z_arr, theta_arr,rc_model, action):
 
     #theta_arr = [theta] #only keep current value
     #Z_arr = [Z]
 
+    '''
     if len(Z_arr) > 10:
         theta_arr = theta_arr[-10:]
         Z_arr = Z_arr[-10:]
+    '''
     result = rc_model.solve_minimize(Z_arr, theta_arr, dt,action)
     rc_model.rates = result.x
 
@@ -212,9 +211,11 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
 
 
         if calc_rate: #updating every 10 time steps
-            result = find_rate_constants(Z,Z_arr, theta_arr, rc_model, env_option.u, env.species_constants)
-            estimated_rates = result.x.tolist()
-            print("time step", i," estimated_rates", estimated_rates)
+            theta = rc_model.compute_theta(Z, env.species_constants)
+            theta_arr.append(theta)
+            Z_arr.append(Z)
+
+
 
             #rc_list.append(estimated_rates)
 
@@ -225,6 +226,9 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         estimated_rates = result.x.tolist()
         print(estimated_rates)
         '''
+        result = find_rate_constants(Z_arr, theta_arr, rc_model, env_option.u)
+        estimated_rates = result.x.tolist()
+        print("estimated_rates", estimated_rates)
         return rewards, states, observation, actions, Z_history, Z, estimated_rates
     else:
         return rewards, states, observation, actions, Z_history, Z, None
@@ -243,9 +247,9 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 200
+    max_episode = 400
     n_episode = 0
-    max_step =100
+    max_step = 200
     N = 10
     scores = []
     prob_list = []
@@ -284,8 +288,8 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
         if n_episode % N == 0:
             env_model.rate_constants = estimated_rates
-        #env.rate_constants = [0.1, 0.05, 0.05]
-        print("rate constant", env_option.rate_constants)
+
+        #print("rate constant", env_option.rate_constants)
 
         x = torch.tensor([1, 2], dtype=torch.float)
         y = model.forward(x)
@@ -395,6 +399,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     plt.figure(1)
     plt.cla()
     scores = scores[::10]
+    print("scores model based high noise", scores)
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
@@ -433,7 +438,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
 N = 2 # number of species
 tau = 1
-dt = 1e-2
+dt = 0.02#1e-2
 
 ODE_env = "LV"
 #ODE_env = "Brusselator"
