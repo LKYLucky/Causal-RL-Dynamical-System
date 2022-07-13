@@ -1,7 +1,8 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from env import LotkaVolterraEnv, BrusselatorEnv
-from env_model import LotkaVolterraEnvModel, BrusselatorEnvModel
+from env import LotkaVolterraEnv, BrusselatorEnv, GeneralizedEnv
+from env_model import LotkaVolterraEnvModel, BrusselatorEnvModel, GeneralizedEnvModel
+
 import torch
 import scipy.optimize as so
 from model import RateConstantModel
@@ -264,6 +265,8 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     elif ODE_env == "Brusselator":
         rc_model = RateConstantModel(num_reactions=4, rates = [0, 0, 0, 0], ODE_env = "Brusselator")
 
+    elif ODE_env == "Generalized":
+        rc_model = RateConstantModel(num_reactions=7, rates = [0.1, 0.05, 0.05, 0, 0, 0, 0],ODE_env = "Generalized") #LV
     while n_episode < max_episode:
         theta_arr = []
         Z_arr = []
@@ -273,6 +276,9 @@ def run(env, env_model, ODE_env, algorithm, uphill):
             env.rate_constants = [0.1, 0.05, 0.05]  # LV
         elif ODE_env == "Brusselator":
             env.rate_constants = [1, 1, 1, 1]  # Brusselator
+
+        elif ODE_env == "Generalized":
+            env.rate_constants = [0.1, 0.05, 0.05, 0, 0, 0, 0]  #LV
 
         if n_episode % N == 0:
             env_option = env
@@ -440,15 +446,18 @@ N = 2 # number of species
 tau = 1
 dt = 0.02#1e-2
 
-ODE_env = "LV"
+#ODE_env = "LV"
 #ODE_env = "Brusselator"
+ODE_env = "Generalized"
 if ODE_env == "LV":
     env = LotkaVolterraEnv(N, tau, dt)
     env_model =  LotkaVolterraEnvModel(N, tau, dt)
 elif ODE_env == "Brusselator":
     env = BrusselatorEnv(N, tau, dt)
     env_model = BrusselatorEnvModel(N, tau, dt)
-
+elif ODE_env == "Generalized":
+    env = GeneralizedEnv(N, tau, dt)
+    env_model = GeneralizedEnvModel(N, tau, dt)
 
 #run(env, algorithm = "reinforce")
 run(env, env_model, ODE_env, algorithm = "a2c", uphill = True)

@@ -20,41 +20,44 @@ class RateConstantModel():
 
     def compute_theta(self, Z, species_constant):
 
-        if self.ODE_env == "LV":
-            y1 = []  # Lotka Volterra
-            for z in Z[:, 0]:
-                y1.append(np.transpose([z, 0]))
 
-            y1 = np.array(y1)
+        y1 = []  # Lotka Volterra
+        for z in Z[:, 0]:
+            y1.append(np.transpose([z, 0]))
 
-            y2 = []
-            for z in Z[:, 1]:
-                y2.append(np.transpose([0, -z]))
-            y2 = np.array(y2)
+        y1 = np.array(y1)
 
-            y3 = np.array(np.transpose([- Z[:, 0] * Z[:, 1], Z[:, 0] * Z[:, 1]]))
-            theta = np.transpose([y1, y2, y3], (1, 0, 2))
+        y2 = np.array(np.transpose([- Z[:, 0] * Z[:, 1], Z[:, 0] * Z[:, 1]]))
 
-        elif self.ODE_env == "Brusselator":
 
-            ##just hard coding A and B for now
-            #A = 1
-            #B = 3  ### remove hard code later
+        y3 = []
+        for z in Z[:, 1]:
+            y3.append(np.transpose([0, -z]))
+        y3 = np.array(y3)
+
+        if  species_constant != []:
+
             A = species_constant[0]
             B = species_constant[1]
 
-            y1 = []
-            for i in range(len(Z[:, 0])):
-                y1.append(np.transpose([A, 0]))
-            y1 = np.array(y1)
-            y2 = np.array(np.transpose([Z[:, 0] ** 2 * Z[:, 1], -Z[:, 0] ** 2 * Z[:, 1]]))
-            y3 = np.array(np.transpose([- B * Z[:, 0], B * Z[:, 0]]))
             y4 = []
-            for X in Z[:, 0]:
-                y4.append(np.transpose([-X, 0]))
+            for i in range(len(Z[:, 0])):
+                y4.append(np.transpose([A, 0]))
             y4 = np.array(y4)
-            theta = np.transpose([y1, y2, y3, y4], (1, 0, 2))
+            y5 = np.array(np.transpose([Z[:, 0] ** 2 * Z[:, 1], -Z[:, 0] ** 2 * Z[:, 1]]))
+            y6 = np.array(np.transpose([- B * Z[:, 0], B * Z[:, 0]]))
+            y7 = []
+            for X in Z[:, 0]:
+                y7.append(np.transpose([-X, 0]))
+            y7 = np.array(y7)
 
+
+        if self.ODE_env == "LV":
+            theta = np.transpose([y1, y2, y3], (1, 0, 2))
+        elif self.ODE_env == "Brusselator":
+            theta = np.transpose([y4, y5, y6, y7], (1, 0, 2))
+        elif self.ODE_env == "Generalized":
+            theta = np.transpose([y1, y2, y3, y4, y5, y6, y7], (1, 0, 2))
         return theta
 
     def elastic_net_func(self, propensities, Z_arr, theta_arr, dt, alpha, lamb, u):
