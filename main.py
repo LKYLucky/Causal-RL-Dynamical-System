@@ -266,7 +266,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         rc_model = RateConstantModel(num_reactions=4, rates = [0, 0, 0, 0], ODE_env = "Brusselator")
 
     elif ODE_env == "Generalized":
-        rc_model = RateConstantModel(num_reactions=7, rates = [0, 0, 0, 0, 0, 0, 0],ODE_env = "Generalized") #LV
+        rc_model = RateConstantModel(num_reactions=6, rates = [0, 0, 0, 0, 0, 0],ODE_env = "Generalized") #LV
     while n_episode < max_episode:
         theta_arr = []
         Z_arr = []
@@ -278,7 +278,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
             env.rate_constants = [1, 1, 1, 1]  # Brusselator
 
         elif ODE_env == "Generalized":
-            env.rate_constants = [0.1, 0.05, 0.05, 0, 0, 0, 0]  #LV
+            env.rate_constants = [0.1, 0.05, 0.05, 0, 0, 0]  #LV
 
         if n_episode % N == 0:
             env_option = env

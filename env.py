@@ -71,8 +71,8 @@ class BrusselatorEnv(ODEBaseEnv):
     def f(self, Z, t):
         #A = 1
         #B = 3
-        #self.species_constants = [1, 1.7]
-        self.species_constants = [1, 3] #unstable
+        self.species_constants = [1, 1.7]
+        #self.species_constants = [1, 3] #unstable
         A = self.species_constants[0]
         B = self.species_constants[1]
 
@@ -103,11 +103,10 @@ class GeneralizedEnv(ODEBaseEnv):
       k4 = self.rate_constants[3]
       k5 = self.rate_constants[4]
       k6 = self.rate_constants[5]
-      k7 = self.rate_constants[6]
-
+      
       X, Y = Z
-      dX = k1 * X - k2 * X * Y + k4 * A + k5 * X ** 2 * Y - k6 * B * X - k7 * X
+      dX = k1 * X - k2 * X * Y + k4 * A + k5 * X ** 2 * Y - k6 * B * X 
       dY = k2 * X * Y - k3 * Y - k5 * X ** 2 * Y + k6 * B * X
       Zdot = [dX, dY]
-      Zdot += 0.1 * self.u
+      Zdot += self.u
       return Zdot

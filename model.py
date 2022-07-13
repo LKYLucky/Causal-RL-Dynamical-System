@@ -20,7 +20,6 @@ class RateConstantModel():
 
     def compute_theta(self, Z, species_constant):
 
-
         y1 = []  # Lotka Volterra
         for z in Z[:, 0]:
             y1.append(np.transpose([z, 0]))
@@ -29,13 +28,12 @@ class RateConstantModel():
 
         y2 = np.array(np.transpose([- Z[:, 0] * Z[:, 1], Z[:, 0] * Z[:, 1]]))
 
-
         y3 = []
         for z in Z[:, 1]:
             y3.append(np.transpose([0, -z]))
         y3 = np.array(y3)
 
-        if  species_constant != []:
+        if species_constant != []:
 
             A = species_constant[0]
             B = species_constant[1]
@@ -51,13 +49,12 @@ class RateConstantModel():
                 y7.append(np.transpose([-X, 0]))
             y7 = np.array(y7)
 
-
         if self.ODE_env == "LV":
             theta = np.transpose([y1, y2, y3], (1, 0, 2))
         elif self.ODE_env == "Brusselator":
             theta = np.transpose([y4, y5, y6, y7], (1, 0, 2))
         elif self.ODE_env == "Generalized":
-            theta = np.transpose([y1, y2, y3, y4, y5, y6, y7], (1, 0, 2))
+            theta = np.transpose([y1, y2, y3, y4, y5, y6], (1, 0, 2))
         return theta
 
     def elastic_net_func(self, propensities, Z_arr, theta_arr, dt, alpha, lamb, u):
