@@ -33,6 +33,7 @@ class ODEBaseEnv(gym.Env):
         self.u = 0.1 * action
         z_init = self.state
         z = odeint(self.f, z_init, tt)
+        #print("z",z)
         self.state = z[-1]
         state_curr = self.state
         #print("state_prev", state_prev, "state_curr",  state_curr)

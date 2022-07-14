@@ -11,6 +11,7 @@ class RateConstantModel():
         self.R = num_reactions
         self.rates = rates
         self.init_xi = np.zeros_like(self.rates)
+        #self.init_xi = self.rates
         self.method = method
         self.tol = tol
         self.approx_jac = approx_jac
@@ -59,7 +60,8 @@ class RateConstantModel():
             y11 = np.array(np.transpose([-2 * Z[:, 0] ** 2, zeros, zeros])) #y11 = [-2X^2, 0, 0]
             y12 = np.array(np.transpose([zeros, 0.5 * f * B * Z[:, 2], - B * Z[:, 2]])) #y12 = [0, 1/2*f*BZ, -BZ]
 
-            theta = np.transpose([y8, y9, y10, y11, y12])
+            theta = np.transpose([y8, y9, y10, y11, y12], (1, 0, 2))
+            #print("bruh",theta.shape)
 
         return theta
 

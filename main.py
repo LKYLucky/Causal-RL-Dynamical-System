@@ -100,7 +100,7 @@ def uphill_policy(observation, critic):
     u = state.grad.detach().numpy() * 0.1
     return u
 
-def convert_to_vec(action, ODE_env): #not sure
+def convert_to_vec(action, ODE_env): #Oh I actually never use the convert to vec for uphill
     if action == 0:
         u = np.array([0, 0, 0]) if ODE_env == "Oregonator" else np.array([0, 0])
     elif action == 1:
@@ -195,11 +195,15 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         elif algorithm == "a2c":
             action = actor.select_action(observation)
             if uphill:
-                u = uphill_policy(observation, critic)
+                if ODE_env != "Oregonator":
+                    u = uphill_policy(observation, critic)
+                else: 
+                    u = np.array([0.0,0.0,0.0])
+                
 
         if not uphill:
             u = convert_to_vec(action, ODE_env)
-
+       
         obs, reward, _, _, Z = env_option.step(u) ##add gaussian noise
         for j in range(len(Z)):
             mu, sigma = 0, 0.00  # mean and standard deviation
@@ -251,10 +255,10 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 400
+    max_episode = 10
     n_episode = 0
-    max_step = 200
-    N = 10
+    max_step = 1000
+    N = 1
     scores = []
     prob_list = []
     states_list = []
@@ -272,7 +276,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         rc_model = RateConstantModel(num_reactions=6, rates = [0, 0, 0, 0, 0, 0],ODE_env = ODE_env) #LV
 
     elif ODE_env == "Oregonator":
-        rc_model = RateConstantModel(num_reactions=5, rates=[0, 0, 0, 0, 0], ODE_env= ODE_env)  # LV
+        rc_model = RateConstantModel(num_reactions=5, rates=[1.28, 2.4 * 1e6, 33.6, 2.4 * 1e3, 1], ODE_env= ODE_env)  # LV
 
     while n_episode < max_episode:
         theta_arr = []
@@ -289,6 +293,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
         elif ODE_env == "Oregonator":
             env.rate_constants = [1.28, 2.4 * 1e6, 33.6, 2.4 * 1e3, 1]
+            #env.rate_constants = [1000, 1000, 1000, 1000, 1000]
 
         if n_episode % N == 0:
             env_option = env
@@ -329,7 +334,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
             update_policy_reinforce(states, actions, returns, model, optimizer)
         elif algorithm == "a2c":
             update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer)
-
+            pass
         for s in range(len(states)):
             states_list.append(states[s].tolist())
             returns_list.append(returns[s])
@@ -344,95 +349,97 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
     #print("result", result)
 
-    x = np.arange(0, 2,0.02)
-    y = np.arange(0, 4,0.04)
-    X, Y = np.meshgrid(x, y)
+    if ODE_env != "Oregonator":
+        x = np.arange(0, 2, 0.02)
+        y = np.arange(0, 4, 0.04)
+        X, Y = np.meshgrid(x, y)
 
-    Z = []
-    for i in x:
-        Z_vec = []
-        for j in y:
-             obs = torch.tensor([i, j], dtype=torch.float)
-             z = critic.forward(obs).detach().numpy()[0]
-             Z_vec.append(z)
-        Z.append([Z_vec])
+        V = []
+        for i in x:
+            V_vec = []
+            for j in y:
+                 obs = torch.tensor([i, j], dtype=torch.float)
+                 val = critic(obs)
+                 V_vec.append(val.detach().numpy())
+            V.append([V_vec])
 
-
-    Z = np.array(Z).reshape(100, 100)
-    fig, ax = plt.subplots()
-    CS = ax.contour(X, Y, Z)
-    ax.clabel(CS, inline=True, fontsize=10)
-    ax.set_xlabel("Prey")
-    ax.set_ylabel("Predators")
-    plt.savefig('./Z_arr_contour_plot.png')
-
-    V = []
-    for i in x:
-        V_vec = []
-        for j in y:
-             obs = torch.tensor([i, j], dtype=torch.float)
-             val = critic(obs)
-             V_vec.append(val.detach().numpy())
-        V.append([V_vec])
-
-    V = np.array(V).reshape(100, 100)
-    fig, ax = plt.subplots()
-    CS = ax.contour(X, Y, V)
-    ax.clabel(CS, inline=True, fontsize=10)
-    ax.set_xlabel("Prey")
-    ax.set_ylabel("Predators")
-    plt.savefig('./Value_arr_contour_plot.png')
+        V = np.array(V).reshape(100, 100)
+        fig, ax = plt.subplots()
+        CS = ax.contour(X, Y, V)
+        ax.clabel(CS, inline=True, fontsize=10)
+        ax.set_xlabel("Prey")
+        ax.set_ylabel("Predators")
+        plt.savefig('./Value_arr_contour_plot.png')
 
 
-    X = []
-    Y = []
-    for s in states_list:
-        X.append(s[0])
-        Y.append(s[1])
+        X = []
+        Y = []
+        for s in states_list:
+            X.append(s[0])
+            Y.append(s[1])
 
-    X = np.array(X)
-    Y = np.array(Y)
-    returns_list = np.array(returns_list)
+        X = np.array(X)
+        Y = np.array(Y)
+        returns_list = np.array(returns_list)
 
-    fig, ax = plt.subplots()
+        fig, ax = plt.subplots()
 
-    z = ax.tricontour(X, Y, returns_list,20)
-    fig.colorbar(z)
-    ax.tricontour(X, Y, returns_list,20)
+        z = ax.tricontour(X, Y, returns_list,20)
+        fig.colorbar(z)
+        ax.tricontour(X, Y, returns_list,20)
 
-    ax.plot(X, Y)
-    ax.set_xlabel("Prey")
-    ax.set_ylabel("Predators")
-    plt.savefig('./returns.png')
+        ax.plot(X, Y)
+        ax.set_xlabel("Prey")
+        ax.set_ylabel("Predators")
+        plt.savefig('./returns.png')
 
-    fig, ax = plt.subplots()
-    ax.plot(Z_history[:, 0], (Z_history[:, 1]))
-    ax.set_xlabel("Prey")
-    ax.set_ylabel("Predators")
-    plt.savefig('./Z_history_contour_plot.png')
+        fig, ax = plt.subplots()
+        ax.plot(Z_history[:, 0], (Z_history[:, 1]))
+        ax.set_xlabel("Prey")
+        ax.set_ylabel("Predators")
+        plt.savefig('./Z_history_contour_plot.png')
 
 
     plt.figure(1)
     plt.cla()
-    scores = scores[::10]
-    print("scores model based high noise", scores)
+    #scores = scores[::10]
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
     plt.savefig('./rewards.png')
     #plt.show()
+    if ODE_env != "Oregonator:":
+        tt = np.linspace(0, max_step, Z_history.shape[0])
+        plt.cla()
+        plt.plot(tt, Z_history[:, 0], 'b', label='prey')
+        plt.plot(tt, Z_history[:, 1], 'r', label='predators')
 
-    tt = np.linspace(0, max_step, Z_history.shape[0])
-    plt.cla()
-    plt.plot(tt, Z_history[:, 0], 'b', label='prey')
-    plt.plot(tt, Z_history[:, 1], 'r', label='predators')
-    plt.plot(tt, Z_history[:, 0]/Z_history[:, 1], 'k', label='ratio')
-    plt.legend(shadow=True, loc='upper right')
-    plt.xlabel('t')
-    plt.ylabel('n')
-    plt.savefig('./state_trajectory.png')
-    #plt.show()
+        plt.plot(tt, Z_history[:, 0] / Z_history[:, 1], 'k', label='ratio')
+        plt.legend(shadow=True, loc='upper right')
+        plt.xlabel('t')
+        plt.ylabel('n')
+        plt.savefig('./state_trajectory.png')
+        #plt.show()
 
+    if ODE_env == "Oregonator:":
+        tt = np.linspace(0, max_step, Z_history.shape[0])
+        fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
+
+        ax1.plot(tt, Z_history[:, 0], 'b', label='Z0')
+        ax1.set_yscale('log')
+        ax1.legend(shadow=True, loc='lower right')
+        ax2.plot(tt, Z_history[:, 1], 'r', label='Z1')
+        ax2.legend(shadow=True, loc='lower right')
+        ax2.set_yscale('log')
+        ax3.plot(tt, Z_history[:, 2], 'k', label='Z2')
+        ax3.legend(shadow=True, loc='lower right')
+        ax3.set_yscale('log')
+        plt.show()
+
+        plt.xlabel('t')
+        plt.ylabel('n')
+        plt.savefig('./oregonator.png')
+        #plt.show()
     '''
     tt = np.linspace(0, max_episode, max_episode)
     plt.cla()
@@ -447,7 +454,6 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     plt.ylabel('Probabilities')
     plt.savefig('./policy_probs.png')
     '''
-    plt.show()
 
     exit()
     env.close()
@@ -457,9 +463,9 @@ tau = 1
 dt = 0.01#1e-2
 
 #ODE_env = "LV"
-#ODE_env = "Brusselator"
+ODE_env = "Brusselator"
 #ODE_env = "Generalized"
-ODE_env = "Oregonator"
+#ODE_env = "Oregonator"
 
 if ODE_env == "LV":
     env = LotkaVolterraEnv(N, tau, dt)
