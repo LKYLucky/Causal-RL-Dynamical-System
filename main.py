@@ -421,7 +421,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         plt.savefig('./state_trajectory.png')
         #plt.show()
 
-    if ODE_env == "Oregonator:":
+    if ODE_env == "Oregonator":
         tt = np.linspace(0, max_step, Z_history.shape[0])
         fig, (ax1, ax2, ax3) = plt.subplots(3, 1)
 
@@ -463,9 +463,9 @@ tau = 1
 dt = 0.01#1e-2
 
 #ODE_env = "LV"
-ODE_env = "Brusselator"
+#ODE_env = "Brusselator"
 #ODE_env = "Generalized"
-#ODE_env = "Oregonator"
+ODE_env = "Oregonator"
 
 if ODE_env == "LV":
     env = LotkaVolterraEnv(N, tau, dt)
