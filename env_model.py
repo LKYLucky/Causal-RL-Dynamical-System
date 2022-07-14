@@ -1,4 +1,4 @@
-from env import LotkaVolterraEnv, BrusselatorEnv, GeneralizedEnv
+from env import LotkaVolterraEnv, BrusselatorEnv, GeneralizedEnv, OregonatorEnv
 
 
 class LotkaVolterraEnvModel(LotkaVolterraEnv):
@@ -7,4 +7,7 @@ class BrusselatorEnvModel(BrusselatorEnv):
     pass
 
 class GeneralizedEnvModel(GeneralizedEnv):
+    pass
+
+class OregonatorEnvModel(OregonatorEnv):
     pass

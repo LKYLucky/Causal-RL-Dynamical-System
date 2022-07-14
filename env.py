@@ -35,7 +35,7 @@ class ODEBaseEnv(gym.Env):
         z = odeint(self.f, z_init, tt)
         self.state = z[-1]
         state_curr = self.state
-
+        #print("state_prev", state_prev, "state_curr",  state_curr)
         reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
         reward *= 1e3
         done = False  # indicates whether the episode is terminated; optional
@@ -110,3 +110,28 @@ class GeneralizedEnv(ODEBaseEnv):
       Zdot = [dX, dY]
       Zdot += self.u
       return Zdot
+
+
+class OregonatorEnv(ODEBaseEnv):
+    def f(self, S, t):
+
+
+        self.species_constants = [0.06, 0.02]  # unstable
+        A = self.species_constants[0]
+        B = self.species_constants[1]
+
+        k1 = self.rate_constants[0]
+        k2 = self.rate_constants[1]
+        k3 = self.rate_constants[2]
+        k4 = self.rate_constants[3]
+        k5 = self.rate_constants[4]
+
+        f = 1
+        X, Y, Z = S
+
+        dX = k1 * A * Y - k2 * X * Y + k3 * A * X - 2 * k4 * X ** 2
+        dY = -k1 * A * Y - k2 * X * Y + 0.5 * f * k5 * B * Z
+        dZ = 2 * k3 * A * X - k5 * B * Z
+        Sdot = [dX, dY, dZ]
+        Sdot += self.u
+        return Sdot

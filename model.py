@@ -19,35 +19,28 @@ class RateConstantModel():
         # self.rates
 
     def compute_theta(self, Z, species_constant):
+        zeros = np.zeros(len(Z[:, 0]))
+        ones = np.ones(len(Z[:, 0]))
 
-        y1 = []  # Lotka Volterra
-        for z in Z[:, 0]:
-            y1.append(np.transpose([z, 0]))
+        '''
+        # Lotka Volterra
+        '''
+        y1 = np.array(np.transpose([Z[:, 0], zeros]))   #y1 =[X,0]
+        y2 = np.array(np.transpose([- Z[:, 0] * Z[:, 1], Z[:, 0] * Z[:, 1]])) #[-XY, XY]
+        y3 =  np.array(np.transpose([zeros, -Z[:, 1]])) #[0, -Y]
 
-        y1 = np.array(y1)
-
-        y2 = np.array(np.transpose([- Z[:, 0] * Z[:, 1], Z[:, 0] * Z[:, 1]]))
-
-        y3 = []
-        for z in Z[:, 1]:
-            y3.append(np.transpose([0, -z]))
-        y3 = np.array(y3)
 
         if species_constant != []:
 
             A = species_constant[0]
             B = species_constant[1]
-
-            y4 = []
-            for i in range(len(Z[:, 0])):
-                y4.append(np.transpose([A, 0]))
-            y4 = np.array(y4)
-            y5 = np.array(np.transpose([Z[:, 0] ** 2 * Z[:, 1], -Z[:, 0] ** 2 * Z[:, 1]]))
-            y6 = np.array(np.transpose([- B * Z[:, 0], B * Z[:, 0]]))
-            y7 = []
-            for X in Z[:, 0]:
-                y7.append(np.transpose([-X, 0]))
-            y7 = np.array(y7)
+            '''
+            Brusselator
+            '''
+            y4 = np.array(np.transpose([A * ones, zeros])) #y4 = [A,0]
+            y5 = np.array(np.transpose([Z[:, 0] ** 2 * Z[:, 1], -Z[:, 0] ** 2 * Z[:, 1]])) #y5 = [X^2*Y, -X^2*Y]
+            y6 = np.array(np.transpose([- B * Z[:, 0], B * Z[:, 0]])) #y6 = [-BX, BX]
+            y7 = np.array(np.transpose([-Z[:, 0], zeros])) #y7 = [-X,0]
 
         if self.ODE_env == "LV":
             theta = np.transpose([y1, y2, y3], (1, 0, 2))
@@ -55,6 +48,19 @@ class RateConstantModel():
             theta = np.transpose([y4, y5, y6, y7], (1, 0, 2))
         elif self.ODE_env == "Generalized":
             theta = np.transpose([y1, y2, y3, y4, y5, y6], (1, 0, 2))
+
+        elif self.ODE_env == "Oregonator":
+
+            f = 1
+
+            y8 = np.array(np.transpose([A * Z[:, 1], -A * Z[:, 1], zeros])) #y8 = [AY, -AY, 0]
+            y9 = np.array(np.transpose([-Z[:, 0] * Z[:, 1], -Z[:, 0] * Z[:, 1], zeros])) #y9 = [-XY, -XY, 0]
+            y10 = np.array(np.transpose([A * Z[:, 0], zeros, 2 * A * Z[:, 0]])) #y10 = [AX, 0, 2AX]
+            y11 = np.array(np.transpose([-2 * Z[:, 0] ** 2, zeros, zeros])) #y11 = [-2X^2, 0, 0]
+            y12 = np.array(np.transpose([zeros, 0.5 * f * B * Z[:, 2], - B * Z[:, 2]])) #y12 = [0, 1/2*f*BZ, -BZ]
+
+            theta = np.transpose([y8, y9, y10, y11, y12])
+
         return theta
 
     def elastic_net_func(self, propensities, Z_arr, theta_arr, dt, alpha, lamb, u):

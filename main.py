@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from env import LotkaVolterraEnv, BrusselatorEnv, GeneralizedEnv
-from env_model import LotkaVolterraEnvModel, BrusselatorEnvModel, GeneralizedEnvModel
+from env import LotkaVolterraEnv, BrusselatorEnv, GeneralizedEnv, OregonatorEnv
+from env_model import LotkaVolterraEnvModel, BrusselatorEnvModel, GeneralizedEnvModel, OregonatorEnvModel
 
 import torch
 import scipy.optimize as so
@@ -81,11 +81,14 @@ class Critic(torch.nn.Module):
     def forward(self, state):
         return self.net(state)
 
-def get_z_init():
+def get_z_init(ODE_env):
 
-    prey = np.random.uniform(0.5, 1.5)
-    pred = np.random.uniform(1, 3)
-    Z_init = np.array([prey, pred])
+    if ODE_env == "Oregonator":
+        Z_init = np.array([1.0, 1.0, 1.0])
+    else:
+        prey = np.random.uniform(0.5, 1.5)
+        pred = np.random.uniform(1, 3)
+        Z_init = np.array([prey, pred])
 
     #Z_init = np.array([1,1])
     return Z_init
@@ -97,13 +100,13 @@ def uphill_policy(observation, critic):
     u = state.grad.detach().numpy() * 0.1
     return u
 
-def convert_to_vec(action):
+def convert_to_vec(action, ODE_env): #not sure
     if action == 0:
-        u = np.array([0, 0])
+        u = np.array([0, 0, 0]) if ODE_env == "Oregonator" else np.array([0, 0])
     elif action == 1:
-        u = np.array([0, 1])
+        u = np.array([0, 1, 0]) if ODE_env == "Oregonator" else np.array([0, 1])
     elif action == 2:
-        u = np.array([1, 0])
+        u = np.array([1, 0, 0]) if ODE_env == "Oregonator" else np.array([1, 0])
     return u
 
 
@@ -179,7 +182,7 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
     actions = []
     rewards = []
 
-    Z_init = get_z_init()
+    Z_init = get_z_init(ODE_env)
     env_option.init_state = Z_init
     Z_history = np.expand_dims(Z_init, 0)
 
@@ -195,11 +198,11 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
                 u = uphill_policy(observation, critic)
 
         if not uphill:
-            u = convert_to_vec(action)
+            u = convert_to_vec(action, ODE_env)
 
         obs, reward, _, _, Z = env_option.step(u) ##add gaussian noise
         for j in range(len(Z)):
-            mu, sigma = 0, 0.001  # mean and standard deviation
+            mu, sigma = 0, 0.00  # mean and standard deviation
             s = np.random.normal(mu, sigma)
             Z[j] = Z[j]+s
 
@@ -261,12 +264,16 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     Z_arr = []
     '''
     if ODE_env == "LV":
-        rc_model = RateConstantModel(rates = [0, 0, 0], ODE_env = "LV")
+        rc_model = RateConstantModel(rates = [0, 0, 0], ODE_env = ODE_env)
     elif ODE_env == "Brusselator":
-        rc_model = RateConstantModel(num_reactions=4, rates = [0, 0, 0, 0], ODE_env = "Brusselator")
+        rc_model = RateConstantModel(num_reactions=4, rates = [0, 0, 0, 0], ODE_env = ODE_env)
 
     elif ODE_env == "Generalized":
-        rc_model = RateConstantModel(num_reactions=6, rates = [0, 0, 0, 0, 0, 0],ODE_env = "Generalized") #LV
+        rc_model = RateConstantModel(num_reactions=6, rates = [0, 0, 0, 0, 0, 0],ODE_env = ODE_env) #LV
+
+    elif ODE_env == "Oregonator":
+        rc_model = RateConstantModel(num_reactions=5, rates=[0, 0, 0, 0, 0], ODE_env= ODE_env)  # LV
+
     while n_episode < max_episode:
         theta_arr = []
         Z_arr = []
@@ -279,6 +286,9 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
         elif ODE_env == "Generalized":
             env.rate_constants = [0.1, 0.05, 0.05, 0, 0, 0]  #LV
+
+        elif ODE_env == "Oregonator":
+            env.rate_constants = [1.28, 2.4 * 1e6, 33.6, 2.4 * 1e3, 1]
 
         if n_episode % N == 0:
             env_option = env
@@ -296,14 +306,14 @@ def run(env, env_model, ODE_env, algorithm, uphill):
             env_model.rate_constants = estimated_rates
 
         #print("rate constant", env_option.rate_constants)
-
+        '''
         x = torch.tensor([1, 2], dtype=torch.float)
         y = model.forward(x)
         y = y.tolist()
         prob_list.append(y)
-
+        '''
         scores.append(sum(rewards))
-        # prob_list.append([zero_prob, one_prob, two_prob])
+
         n_episode += 1
 
         if algorithm == "reinforce":
@@ -423,7 +433,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     plt.savefig('./state_trajectory.png')
     #plt.show()
 
-
+    '''
     tt = np.linspace(0, max_episode, max_episode)
     plt.cla()
     zeros_prob = [item[0] for item in prob_list]
@@ -436,7 +446,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     plt.xlabel('Episode #')
     plt.ylabel('Probabilities')
     plt.savefig('./policy_probs.png')
-
+    '''
     plt.show()
 
     exit()
@@ -444,11 +454,13 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
 N = 2 # number of species
 tau = 1
-dt = 0.02#1e-2
+dt = 0.01#1e-2
 
 #ODE_env = "LV"
 #ODE_env = "Brusselator"
-ODE_env = "Generalized"
+#ODE_env = "Generalized"
+ODE_env = "Oregonator"
+
 if ODE_env == "LV":
     env = LotkaVolterraEnv(N, tau, dt)
     env_model =  LotkaVolterraEnvModel(N, tau, dt)
@@ -458,7 +470,10 @@ elif ODE_env == "Brusselator":
 elif ODE_env == "Generalized":
     env = GeneralizedEnv(N, tau, dt)
     env_model = GeneralizedEnvModel(N, tau, dt)
-
+elif ODE_env == "Oregonator":
+    N = 3  # number of species
+    env = OregonatorEnv(N, tau, dt)
+    env_model = OregonatorEnvModel(N, tau, dt)
 #run(env, algorithm = "reinforce")
 run(env, env_model, ODE_env, algorithm = "a2c", uphill = True)
 #run(env, algorithm = "optimal policy")
