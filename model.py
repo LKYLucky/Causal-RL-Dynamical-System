@@ -149,6 +149,24 @@ class RateConstantModel():
         jac = False if self.approx_jac else \
             lambda x: self.elastic_net_jac(x, Z_arr, theta_arr, dt, self.alpha, self.lamb, u)
 
+
+        cons = ({'type': 'ineq',
+                 'fun': lambda x: x[0]},
+                {'type': 'ineq',
+                 'fun': lambda x: x[1]},
+                {'type': 'ineq',
+                 'fun': lambda x: x[2]},
+                {'type': 'ineq',
+                 'fun': lambda x: x[3]},
+                {'type': 'ineq',
+                 'fun': lambda x: x[4]})
+
+        if self.ODE_env == "Oregonator":
+            print("true",True)
+            constraints = cons
+        else:
+            constraints = None
+
         result = so.minimize(
             objective,
             x0=self.rates,
@@ -156,5 +174,6 @@ class RateConstantModel():
             tol=self.tol,
             method=self.method,
             jac=None,
-            options=None)
+            options=None,
+            constraints = constraints)
         return result

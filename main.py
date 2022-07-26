@@ -7,6 +7,7 @@ import torch
 import scipy.optimize as so
 from model import RateConstantModel
 
+
 # import torch.nn.functional as F
 # from stable_baselines.sac.policies import MlpPolicy
 # from stable_baselines import SAC
@@ -81,8 +82,8 @@ class Critic(torch.nn.Module):
     def forward(self, state):
         return self.net(state)
 
-def get_z_init(ODE_env):
 
+def get_z_init(ODE_env):
     if ODE_env == "Oregonator":
         Z_init = np.array([1.0, 1.0, 1.0])
     else:
@@ -90,7 +91,7 @@ def get_z_init(ODE_env):
         pred = np.random.uniform(1, 3)
         Z_init = np.array([prey, pred])
 
-    #Z_init = np.array([1,1])
+    # Z_init = np.array([1,1])
     return Z_init
 
 
@@ -100,7 +101,8 @@ def uphill_policy(observation, critic):
     u = state.grad.detach().numpy() * 0.1
     return u
 
-def convert_to_vec(action, ODE_env): #Oh I actually never use the convert to vec for uphill
+
+def convert_to_vec(action, ODE_env):  # Oh I actually never use the convert to vec for uphill
     if action == 0:
         u = np.array([0, 0, 0]) if ODE_env == "Oregonator" else np.array([0, 0])
     elif action == 1:
@@ -110,7 +112,7 @@ def convert_to_vec(action, ODE_env): #Oh I actually never use the convert to vec
     return u
 
 
-def discounted_rewards(rewards,R, gamma):
+def discounted_rewards(rewards, R, gamma):
     returns = np.zeros_like(rewards)
     ### remove last 25 time steps
     for t in reversed(range(len(rewards))):
@@ -146,7 +148,7 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
 
     advantages = returns - torch.reshape(values, (-1,))
     actor_loss = - (policy.log_prob(actions) * advantages.detach()).mean()
-    print("actor_loss",actor_loss)
+    print("actor_loss", actor_loss)
     actor_optimizer.zero_grad()
     actor_loss.backward()
     actor_optimizer.step()
@@ -161,23 +163,23 @@ def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, 
     critic_optimizer.step()
 
 
-def find_rate_constants(Z_arr, theta_arr,rc_model, action):
-
-    #theta_arr = [theta] #only keep current value
-    #Z_arr = [Z]
+def find_rate_constants(Z_arr, theta_arr, rc_model, action):
+    # theta_arr = [theta] #only keep current value
+    # Z_arr = [Z]
 
     '''
     if len(Z_arr) > 10:
         theta_arr = theta_arr[-10:]
         Z_arr = Z_arr[-10:]
     '''
-    result = rc_model.solve_minimize(Z_arr, theta_arr, dt,action)
+    result = rc_model.solve_minimize(Z_arr, theta_arr, dt, action)
     rc_model.rates = result.x
 
     return result
 
-def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model, calc_rate):
 
+def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model,
+                    calc_rate):
     states = []
     actions = []
     rewards = []
@@ -197,19 +199,17 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
             if uphill:
                 if ODE_env != "Oregonator":
                     u = uphill_policy(observation, critic)
-                else: 
-                    u = np.array([0.0,0.0,0.0])
-                
+                else:
+                    u = np.array([0.0, 0.0, 0.0])
 
         if not uphill:
             u = convert_to_vec(action, ODE_env)
-       
-        obs, reward, _, _, Z = env_option.step(u) ##add gaussian noise
+
+        obs, reward, _, _, Z = env_option.step(u)  ##add gaussian noise
         for j in range(len(Z)):
             mu, sigma = 0, 0.00  # mean and standard deviation
             s = np.random.normal(mu, sigma)
-            Z[j] = Z[j]+s
-
+            Z[j] = Z[j] + s
 
         Z_history = np.concatenate((Z_history, Z), 0)
         states.append(observation)
@@ -217,17 +217,14 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         actions.append(action)
         rewards.append(reward)
 
-
-        if calc_rate: #updating every 10 time steps
+        if calc_rate:  # updating every 10 time steps
             theta = rc_model.compute_theta(Z, env.species_constants)
             theta_arr.append(theta)
             Z_arr.append(Z)
 
+            # rc_list.append(estimated_rates)
 
-
-            #rc_list.append(estimated_rates)
-
-    #print(rc_list)
+    # print(rc_list)
     if calc_rate:
         '''
         result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env_option.u)
@@ -240,6 +237,7 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         return rewards, states, observation, actions, Z_history, Z, estimated_rates
     else:
         return rewards, states, observation, actions, Z_history, Z, None
+
 
 def run(env, env_model, ODE_env, algorithm, uphill):
     model = Model()
@@ -255,10 +253,10 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 10
+    max_episode = 100
     n_episode = 0
     max_step = 1000
-    N = 1
+    N = 10
     scores = []
     prob_list = []
     states_list = []
@@ -268,15 +266,16 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     Z_arr = []
     '''
     if ODE_env == "LV":
-        rc_model = RateConstantModel(rates = [0, 0, 0], ODE_env = ODE_env)
+        rc_model = RateConstantModel(rates=[0, 0, 0], ODE_env=ODE_env)
     elif ODE_env == "Brusselator":
-        rc_model = RateConstantModel(num_reactions=4, rates = [0, 0, 0, 0], ODE_env = ODE_env)
+        rc_model = RateConstantModel(num_reactions=4, rates=[0, 0, 0, 0], ODE_env=ODE_env)
 
     elif ODE_env == "Generalized":
-        rc_model = RateConstantModel(num_reactions=6, rates = [0, 0, 0, 0, 0, 0],ODE_env = ODE_env) #LV
+        rc_model = RateConstantModel(num_reactions=6, rates=[0, 0, 0, 0, 0, 0], ODE_env=ODE_env)  # LV
 
     elif ODE_env == "Oregonator":
-        rc_model = RateConstantModel(num_reactions=5, rates=[1.28, 2.4 * 1e6, 33.6, 2.4 * 1e3, 1], ODE_env= ODE_env)  # LV
+        rc_model = RateConstantModel(num_reactions=5, rates=[1.28, 2.4 * 1e6, 33.6, 2.4 * 1e3, 1],
+                                     ODE_env=ODE_env)  # LV
 
     while n_episode < max_episode:
         theta_arr = []
@@ -289,11 +288,11 @@ def run(env, env_model, ODE_env, algorithm, uphill):
             env.rate_constants = [1, 1, 1, 1]  # Brusselator
 
         elif ODE_env == "Generalized":
-            env.rate_constants = [0.1, 0.05, 0.05, 0, 0, 0]  #LV
+            env.rate_constants = [0.1, 0.05, 0.05, 0, 0, 0]  # LV
 
         elif ODE_env == "Oregonator":
             env.rate_constants = [1.28, 2.4 * 1e6, 33.6, 2.4 * 1e3, 1]
-            #env.rate_constants = [1000, 1000, 1000, 1000, 1000]
+            # env.rate_constants = [1000, 1000, 1000, 1000, 1000]
 
         if n_episode % N == 0:
             env_option = env
@@ -305,12 +304,13 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         rewards, states, observation, actions, Z_history, Z, estimated_rates = run_one_episode(env_option, max_step,
                                                                                                algorithm, model,
                                                                                                actor, critic,
-                                                                                               uphill, Z_arr, theta_arr, rc_model, calc_rate)
+                                                                                               uphill, Z_arr, theta_arr,
+                                                                                               rc_model, calc_rate)
 
         if n_episode % N == 0:
             env_model.rate_constants = estimated_rates
 
-        #print("rate constant", env_option.rate_constants)
+        # print("rate constant", env_option.rate_constants)
         '''
         x = torch.tensor([1, 2], dtype=torch.float)
         y = model.forward(x)
@@ -339,15 +339,17 @@ def run(env, env_model, ODE_env, algorithm, uphill):
             states_list.append(states[s].tolist())
             returns_list.append(returns[s])
 
-    #eval -- let's make this a separate function, analogous to 'run' but without any training or policy updating
-    #done = False
+    # eval -- let's make this a separate function, analogous to 'run' but without any training or policy updating
+    # done = False
     theta_arr = []
     Z_arr = []
 
-
-    rewards, states, observation, actions, Z_history, Z, estimated_rates= run_one_episode(env, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model, False)
-    #result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
-    #print("result", result)
+    rewards, states, observation, actions, Z_history, Z, estimated_rates = run_one_episode(env, max_step, algorithm,
+                                                                                           model, actor, critic, uphill,
+                                                                                           Z_arr, theta_arr, rc_model,
+                                                                                           False)
+    # result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
+    # print("result", result)
 
     if ODE_env != "Oregonator":
         x = np.arange(0, 2, 0.02)
@@ -358,9 +360,9 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         for i in x:
             V_vec = []
             for j in y:
-                 obs = torch.tensor([i, j], dtype=torch.float)
-                 val = critic(obs)
-                 V_vec.append(val.detach().numpy())
+                obs = torch.tensor([i, j], dtype=torch.float)
+                val = critic(obs)
+                V_vec.append(val.detach().numpy())
             V.append([V_vec])
 
         V = np.array(V).reshape(100, 100)
@@ -370,7 +372,6 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         ax.set_xlabel("Prey")
         ax.set_ylabel("Predators")
         plt.savefig('./Value_arr_contour_plot.png')
-
 
         X = []
         Y = []
@@ -384,9 +385,9 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
         fig, ax = plt.subplots()
 
-        z = ax.tricontour(X, Y, returns_list,20)
+        z = ax.tricontour(X, Y, returns_list, 20)
         fig.colorbar(z)
-        ax.tricontour(X, Y, returns_list,20)
+        ax.tricontour(X, Y, returns_list, 20)
 
         ax.plot(X, Y)
         ax.set_xlabel("Prey")
@@ -399,15 +400,14 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         ax.set_ylabel("Predators")
         plt.savefig('./Z_history_contour_plot.png')
 
-
     plt.figure(1)
     plt.cla()
-    #scores = scores[::10]
+    # scores = scores[::10]
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
     plt.savefig('./rewards.png')
-    #plt.show()
+    # plt.show()
     if ODE_env != "Oregonator:":
         tt = np.linspace(0, max_step, Z_history.shape[0])
         plt.cla()
@@ -419,7 +419,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         plt.xlabel('t')
         plt.ylabel('n')
         plt.savefig('./state_trajectory.png')
-        #plt.show()
+        # plt.show()
 
     if ODE_env == "Oregonator":
         tt = np.linspace(0, max_step, Z_history.shape[0])
@@ -439,7 +439,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         plt.xlabel('t')
         plt.ylabel('n')
         plt.savefig('./oregonator.png')
-        #plt.show()
+        # plt.show()
     '''
     tt = np.linspace(0, max_episode, max_episode)
     plt.cla()
@@ -458,18 +458,19 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     exit()
     env.close()
 
-N = 2 # number of species
+
+N = 2  # number of species
 tau = 1
-dt = 0.01#1e-2
+dt = 0.01  # 1e-2
 
 #ODE_env = "LV"
-#ODE_env = "Brusselator"
-#ODE_env = "Generalized"
+# ODE_env = "Brusselator"
+# ODE_env = "Generalized"
 ODE_env = "Oregonator"
 
 if ODE_env == "LV":
     env = LotkaVolterraEnv(N, tau, dt)
-    env_model =  LotkaVolterraEnvModel(N, tau, dt)
+    env_model = LotkaVolterraEnvModel(N, tau, dt)
 elif ODE_env == "Brusselator":
     env = BrusselatorEnv(N, tau, dt)
     env_model = BrusselatorEnvModel(N, tau, dt)
@@ -480,6 +481,6 @@ elif ODE_env == "Oregonator":
     N = 3  # number of species
     env = OregonatorEnv(N, tau, dt)
     env_model = OregonatorEnvModel(N, tau, dt)
-#run(env, algorithm = "reinforce")
-run(env, env_model, ODE_env, algorithm = "a2c", uphill = True)
-#run(env, algorithm = "optimal policy")
+# run(env, algorithm = "reinforce")
+run(env, env_model, ODE_env, algorithm="a2c", uphill=True)
+# run(env, algorithm = "optimal policy")
