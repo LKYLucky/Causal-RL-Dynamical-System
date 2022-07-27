@@ -429,6 +429,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         plt.ylabel('n')
         plt.savefig('./state_trajectory.png')
 
+    if ODE_env == "Brusselator":
         plt.cla()
         A = list(zip(*states))[0]
         B = list(zip(*states))[1]
@@ -484,7 +485,7 @@ N = 2  # number of species
 tau = 1
 dt = 0.01  # 1e-2
 
-# ODE_env = "LV"
+#ODE_env = "LV"
 ODE_env = "Brusselator"
 # ODE_env = "Generalized"
 #ODE_env = "Oregonator"
