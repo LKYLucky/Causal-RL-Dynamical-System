@@ -186,9 +186,16 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
 
     Z_init = get_z_init(ODE_env)
     env_option.init_state = Z_init
+    if ODE_env == "Brusselator":
+        env_option.init_species = np.array([1.0, 3.0])
     Z_history = np.expand_dims(Z_init, 0)
 
-    observation = env_option.reset()
+    init_state, init_species = env_option.reset()
+
+    if ODE_env != "Brusselator":
+        observation = init_state
+    else:
+        observation = init_species
     rc_list = []
     for i in range(max_step):  # while not done:
 
@@ -197,6 +204,7 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         elif algorithm == "a2c":
             action = actor.select_action(observation)
             if uphill:
+
                 if ODE_env != "Oregonator":
                     u = uphill_policy(observation, critic)
                 else:
@@ -216,9 +224,9 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         observation = obs
         actions.append(action)
         rewards.append(reward)
-
+        #print("observation", observation, "u", u)
         if calc_rate:  # updating every 10 time steps
-            theta = rc_model.compute_theta(Z, env.species_constants)
+            theta = rc_model.compute_theta(Z, env.species)
             theta_arr.append(theta)
             Z_arr.append(Z)
 
@@ -253,18 +261,15 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     print("action_space", env.action_space.n)
 
     # train
-    max_episode = 100
+    max_episode = 400
     n_episode = 0
-    max_step = 1000
+    max_step = 200
     N = 10
     scores = []
     prob_list = []
     states_list = []
     returns_list = []
-    '''
-    theta_arr = []
-    Z_arr = []
-    '''
+
     if ODE_env == "LV":
         rc_model = RateConstantModel(rates=[0, 0, 0], ODE_env=ODE_env)
     elif ODE_env == "Brusselator":
@@ -296,6 +301,9 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
         if n_episode % N == 0:
             env_option = env
+
+            ########change it later to True, now for testing
+            #calc_rate = False
             calc_rate = True
         else:
             env_option = env_model
@@ -310,7 +318,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         if n_episode % N == 0:
             env_model.rate_constants = estimated_rates
 
-        # print("rate constant", env_option.rate_constants)
+        print("rate constant", env_option.rate_constants)
         '''
         x = torch.tensor([1, 2], dtype=torch.float)
         y = model.forward(x)
@@ -334,7 +342,6 @@ def run(env, env_model, ODE_env, algorithm, uphill):
             update_policy_reinforce(states, actions, returns, model, optimizer)
         elif algorithm == "a2c":
             update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer)
-            pass
         for s in range(len(states)):
             states_list.append(states[s].tolist())
             returns_list.append(returns[s])
@@ -348,6 +355,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
                                                                                            model, actor, critic, uphill,
                                                                                            Z_arr, theta_arr, rc_model,
                                                                                            False)
+    print("observation", observation)
     # result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
     # print("result", result)
 
@@ -402,7 +410,8 @@ def run(env, env_model, ODE_env, algorithm, uphill):
 
     plt.figure(1)
     plt.cla()
-    # scores = scores[::10]
+    scores = scores[::10]
+    print("scores", scores)
     plt.plot(np.arange(1, len(scores) + 1), scores)
     plt.ylabel('Score')
     plt.xlabel('Episode #')
@@ -419,6 +428,18 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         plt.xlabel('t')
         plt.ylabel('n')
         plt.savefig('./state_trajectory.png')
+
+        plt.cla()
+        A = list(zip(*states))[0]
+        B = list(zip(*states))[1]
+        plt.plot(np.arange(1, max_step + 1), A, 'b', label='A')
+        plt.plot(np.arange(1, max_step + 1), B, 'r', label='B')
+        plt.legend(shadow=True, loc='upper right')
+        plt.xlabel('t')
+        plt.ylabel('n')
+        plt.savefig('./species_constants_trajectory.png')
+        # plt.show()
+
         # plt.show()
 
     if ODE_env == "Oregonator":
@@ -463,10 +484,10 @@ N = 2  # number of species
 tau = 1
 dt = 0.01  # 1e-2
 
-#ODE_env = "LV"
-# ODE_env = "Brusselator"
+# ODE_env = "LV"
+ODE_env = "Brusselator"
 # ODE_env = "Generalized"
-ODE_env = "Oregonator"
+#ODE_env = "Oregonator"
 
 if ODE_env == "LV":
     env = LotkaVolterraEnv(N, tau, dt)

@@ -7,7 +7,8 @@ import gym
 
 class ODEBaseEnv(gym.Env):
 
-    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=[], rate_constants = []):
+    def __init__(self, num_species=2, time_interval_action=1, dt=1e-3, init_state=[], init_species=[],
+                 rate_constants=[]):
         # may need to add more here
 
         low = np.zeros((num_species), dtype=np.float32)
@@ -21,8 +22,10 @@ class ODEBaseEnv(gym.Env):
         self.dt = dt
 
         self.init_state = init_state
-        self.rate_constants = rate_constants
+        self.init_species = init_species  # add this
 
+        self.rate_constants = rate_constants
+        # self.species = species
 
     def step(self, action):
         'integrates the ODE system with a constant additive force vector (action)'
@@ -33,12 +36,12 @@ class ODEBaseEnv(gym.Env):
         self.u = 0.1 * action
         z_init = self.state
         z = odeint(self.f, z_init, tt)
-        #print("z",z)
+        # print("z",z)
         self.state = z[-1]
         state_curr = self.state
-        #print("state_prev", state_prev, "state_curr",  state_curr)
+        # print("state_prev", state_prev, "state_curr",  state_curr)
         reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
-        reward *= 1e3
+        reward *= 1e6
         done = False  # indicates whether the episode is terminated; optional
         info = {}  # can be used in custom Gym environments; optional
 
@@ -49,14 +52,15 @@ class ODEBaseEnv(gym.Env):
     def reset(self):
         'resets the ODE system to initial conditions'
         self.state = self.init_state
-        #print("state", self.state)
-        return self.state
+        self.species = self.init_species
+        # print("state", self.state)
+        return self.state, self.species
+
 
 class LotkaVolterraEnv(ODEBaseEnv):
 
     def f(self, Z, t):
-        self.species_constants = []
-        #self.rate_constants = [0.1, 0.05, 0.05]
+        # self.rate_constants = [0.1, 0.05, 0.05]
         k1 = self.rate_constants[0]
         k2 = self.rate_constants[1]
         k3 = self.rate_constants[2]
@@ -67,15 +71,16 @@ class LotkaVolterraEnv(ODEBaseEnv):
         Zdot += self.u
         return Zdot
 
+
 class BrusselatorEnv(ODEBaseEnv):
 
     def f(self, Z, t):
-        #A = 1
-        #B = 3
-        self.species_constants = [1, 1.7]
-        #self.species_constants = [1, 3] #unstable
-        A = self.species_constants[0]
-        B = self.species_constants[1]
+        # A = 1
+        # B = 3
+        # self.species = [1, 1.7]
+        # self.species = [1, 3] #unstable
+        A = self.species[0]
+        B = self.species[1]
 
         k1 = self.rate_constants[0]
         k2 = self.rate_constants[1]
@@ -83,43 +88,70 @@ class BrusselatorEnv(ODEBaseEnv):
         k4 = self.rate_constants[3]
 
         X, Y = Z
-        Zdot = [k1*A + k2*X**2*Y - k3*B*X - k4*X, - k2*X**2*Y+ k3*B*X]
-        Zdot += 0.1* self.u
+        Zdot = [k1 * A + k2 * X ** 2 * Y - k3 * B * X - k4 * X, - k2 * X ** 2 * Y + k3 * B * X]
 
         return Zdot
+
+    def step(self, action):
+        'integrates the ODE system with a constant additive force vector (action)'
+        'returns a reward based on the ODE variables at the *end* of this time interval'
+
+        tt = np.linspace(0, self.tau, int(1 / self.dt))
+        state_prev = self.state
+        sc_prev = self.species
+        self.u = 0.001 * action
+        #self.u = 0.00001 * action
+        self.species = sc_prev + self.u
+        z_init = self.state
+        z = odeint(self.f, z_init, tt)
+        self.state = z[-1]
+        state_curr = self.state
+
+
+        #sc_curr = self.species
+
+        reward = -((state_prev - state_curr) ** 2).sum() #change reward function back to original
+        #reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
+        reward *= 1e3
+        # print("reward", reward)
+        done = False  # indicates whether the episode is terminated; optional
+        info = {}  # can be used in custom Gym environments; optional
+
+        # we assume z is observed with zero noise
+        obs = self.species
+        return obs, reward, done, info, z
+
 
 class GeneralizedEnv(ODEBaseEnv):
 
     def f(self, Z, t):
+        # Zdot =  LotkaVolterraEnv.Zdot + BrusselatorEnv.Zdot
 
-      #Zdot =  LotkaVolterraEnv.Zdot + BrusselatorEnv.Zdot
+        self.species = [1, 1.7]  # unstable
+        A = self.species[0]
+        B = self.species[1]
 
-      self.species_constants = [1, 1.7]  # unstable
-      A = self.species_constants[0]
-      B = self.species_constants[1]
+        k1 = self.rate_constants[0]
+        k2 = self.rate_constants[1]
+        k3 = self.rate_constants[2]
+        k4 = self.rate_constants[3]
+        k5 = self.rate_constants[4]
+        k6 = self.rate_constants[5]
 
-      k1 = self.rate_constants[0]
-      k2 = self.rate_constants[1]
-      k3 = self.rate_constants[2]
-      k4 = self.rate_constants[3]
-      k5 = self.rate_constants[4]
-      k6 = self.rate_constants[5]
-      
-      X, Y = Z
-      dX = k1 * X - k2 * X * Y + k4 * A + k5 * X ** 2 * Y - k6 * B * X 
-      dY = k2 * X * Y - k3 * Y - k5 * X ** 2 * Y + k6 * B * X
-      Zdot = [dX, dY]
-      Zdot += self.u
-      return Zdot
+        X, Y = Z
+        dX = k1 * X - k2 * X * Y + k4 * A + k5 * X ** 2 * Y - k6 * B * X
+        dY = k2 * X * Y - k3 * Y - k5 * X ** 2 * Y + k6 * B * X
+        Zdot = [dX, dY]
+        Zdot += self.u
+        return Zdot
 
 
 class OregonatorEnv(ODEBaseEnv):
     def f(self, S, t):
-
-
-        self.species_constants = [0.06, 0.02]  # unstable
-        A = self.species_constants[0]
-        B = self.species_constants[1]
+        #self.species = [0.06, 0.02]  
+        self.species = [3, 0.02]  # unstable
+        A = self.species[0]
+        B = self.species[1]
 
         k1 = self.rate_constants[0]
         k2 = self.rate_constants[1]

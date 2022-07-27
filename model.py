@@ -162,7 +162,6 @@ class RateConstantModel():
                  'fun': lambda x: x[4]})
 
         if self.ODE_env == "Oregonator":
-            print("true",True)
             constraints = cons
         else:
             constraints = None
