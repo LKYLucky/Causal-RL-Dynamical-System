@@ -41,7 +41,7 @@ class ODEBaseEnv(gym.Env):
         state_curr = self.state
         # print("state_prev", state_prev, "state_curr",  state_curr)
         reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
-        reward *= 1e6
+        reward *= 1e3
         done = False  # indicates whether the episode is terminated; optional
         info = {}  # can be used in custom Gym environments; optional
 
