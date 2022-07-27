@@ -13,59 +13,6 @@ from model import RateConstantModel
 # from stable_baselines import SAC
 
 
-class Model(torch.nn.Module):
-    def __init__(self):
-        super(Model, self).__init__()
-
-        self.net = torch.nn.Sequential(
-            torch.nn.Linear(env.observation_space.shape[0], 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, env.action_space.n),
-            torch.nn.ReLU(),
-            torch.nn.Softmax(dim=-1)
-        )
-
-    def forward(self, state):
-        return self.net(state)
-
-    def select_action(self, state):
-        state = torch.tensor(state, dtype=torch.float)
-        probs = self.forward(state)
-
-        # print('action probs:')
-        # print(probs)
-
-        # Equivalent to multinomial
-        m = torch.distributions.Categorical(probs)
-        action = m.sample().item()
-        return action
-
-
-class Actor(torch.nn.Module):
-
-    def __init__(self):
-        super(Actor, self).__init__()
-        self.net = torch.nn.Sequential(
-            torch.nn.Linear(env.observation_space.shape[0], 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, env.action_space.n),
-            torch.nn.Softmax(dim=-1)
-        )
-
-    def forward(self, state):
-        return self.net(state)
-
-    def select_action(self, state):
-        state = torch.tensor(state, dtype=torch.float)
-        probs = self.forward(state)
-        # Equivalent to multinomial
-        m = torch.distributions.Categorical(probs)
-        action = m.sample().item()
-
-        return action
-
 
 class Critic(torch.nn.Module):
 
@@ -98,17 +45,8 @@ def get_z_init(ODE_env):
 def uphill_policy(observation, critic):
     state = torch.tensor(observation, dtype=torch.float, requires_grad=True)
     critic(state).backward()
+    #print("critic(state)",critic(state))
     u = state.grad.detach().numpy() * 0.1
-    return u
-
-
-def convert_to_vec(action, ODE_env):  # Oh I actually never use the convert to vec for uphill
-    if action == 0:
-        u = np.array([0, 0, 0]) if ODE_env == "Oregonator" else np.array([0, 0])
-    elif action == 1:
-        u = np.array([0, 1, 0]) if ODE_env == "Oregonator" else np.array([0, 1])
-    elif action == 2:
-        u = np.array([1, 0, 0]) if ODE_env == "Oregonator" else np.array([1, 0])
     return u
 
 
@@ -121,67 +59,32 @@ def discounted_rewards(rewards, R, gamma):
     return returns
 
 
-def update_policy_reinforce(states, actions, returns, model, optimizer):
+def update_policy(states, returns, critic, critic_optimizer):
     states = torch.tensor(states, dtype=torch.float)
-    actions = torch.tensor(actions, dtype=torch.int)
     returns = torch.tensor(returns, dtype=torch.float)
 
-    probs = model(states)  # https://pytorch.org/docs/stable/distributions.html
-    m = torch.distributions.Categorical(probs=probs)
-    log_prob = m.log_prob(actions)
-    loss = (-log_prob * returns).mean()
-
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-
-
-def update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer):
-    states = torch.tensor(states, dtype=torch.float)
-    actions = torch.tensor(actions, dtype=torch.float)
-    returns = torch.tensor(returns, dtype=torch.float)
-
-    probs = actor(states)  # https://pytorch.org/docs/stable/distributions.html
-    policy = torch.distributions.Categorical(probs=probs)
 
     values = critic(states)
 
     advantages = returns - torch.reshape(values, (-1,))
-    actor_loss = - (policy.log_prob(actions) * advantages.detach()).mean()
-    print("actor_loss", actor_loss)
-    actor_optimizer.zero_grad()
-    actor_loss.backward()
-    actor_optimizer.step()
+    # loss for critic (MSE)
 
     critic_loss = advantages.pow(2).mean()
 
-    # loss for critic (MSE)
-
     critic_optimizer.zero_grad()
     critic_loss.backward()
-
     critic_optimizer.step()
 
 
 def find_rate_constants(Z_arr, theta_arr, rc_model, action):
-    # theta_arr = [theta] #only keep current value
-    # Z_arr = [Z]
 
-    '''
-    if len(Z_arr) > 10:
-        theta_arr = theta_arr[-10:]
-        Z_arr = Z_arr[-10:]
-    '''
     result = rc_model.solve_minimize(Z_arr, theta_arr, dt, action)
     rc_model.rates = result.x
-
     return result
 
 
-def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphill, Z_arr, theta_arr, rc_model,
-                    calc_rate):
+def run_one_episode(env_option, max_step, critic, Z_arr, theta_arr, rc_model, calc_rate):
     states = []
-    actions = []
     rewards = []
 
     Z_init = get_z_init(ODE_env)
@@ -199,19 +102,11 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
     rc_list = []
     for i in range(max_step):  # while not done:
 
-        if algorithm == "reinforce":
-            action = model.select_action(observation)
-        elif algorithm == "a2c":
-            action = actor.select_action(observation)
-            if uphill:
 
-                if ODE_env != "Oregonator":
-                    u = uphill_policy(observation, critic)
-                else:
-                    u = np.array([0.0, 0.0, 0.0])
-
-        if not uphill:
-            u = convert_to_vec(action, ODE_env)
+        if ODE_env != "Oregonator":
+            u = uphill_policy(observation, critic)
+        else:
+            u = np.array([0.0, 0.0, 0.0])
 
         obs, reward, _, _, Z = env_option.step(u)  ##add gaussian noise
         for j in range(len(Z)):
@@ -222,7 +117,6 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         Z_history = np.concatenate((Z_history, Z), 0)
         states.append(observation)
         observation = obs
-        actions.append(action)
         rewards.append(reward)
         #print("observation", observation, "u", u)
         if calc_rate:  # updating every 10 time steps
@@ -242,23 +136,20 @@ def run_one_episode(env_option, max_step, algorithm, model, actor, critic, uphil
         result = find_rate_constants(Z_arr, theta_arr, rc_model, env_option.u)
         estimated_rates = result.x.tolist()
         print("estimated_rates", estimated_rates)
-        return rewards, states, observation, actions, Z_history, Z, estimated_rates
+        return rewards, states, observation, Z_history, Z, estimated_rates
     else:
-        return rewards, states, observation, actions, Z_history, Z, None
+        return rewards, states, observation, Z_history, Z, None
 
 
-def run(env, env_model, ODE_env, algorithm, uphill):
-    model = Model()
-    actor = Actor()
+def run(env, env_model, ODE_env):
     critic = Critic()
 
     lr = 0.01
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    actor_optimizer = torch.optim.Adam(actor.parameters(), lr=lr)
+
     critic_optimizer = torch.optim.Adam(critic.parameters(), lr=lr)
 
     print("obs space", env.observation_space)
-    print("action_space", env.action_space.n)
+    print("action_spaction_space", env.action_space.n)
 
     # train
     max_episode = 400
@@ -309,39 +200,25 @@ def run(env, env_model, ODE_env, algorithm, uphill):
             env_option = env_model
             calc_rate = False
 
-        rewards, states, observation, actions, Z_history, Z, estimated_rates = run_one_episode(env_option, max_step,
-                                                                                               algorithm, model,
-                                                                                               actor, critic,
-                                                                                               uphill, Z_arr, theta_arr,
+        rewards, states, observation, Z_history, Z, estimated_rates = run_one_episode(env_option, max_step, critic, Z_arr, theta_arr,
                                                                                                rc_model, calc_rate)
 
         if n_episode % N == 0:
             env_model.rate_constants = estimated_rates
 
         print("rate constant", env_option.rate_constants)
-        '''
-        x = torch.tensor([1, 2], dtype=torch.float)
-        y = model.forward(x)
-        y = y.tolist()
-        prob_list.append(y)
-        '''
         scores.append(sum(rewards))
 
         n_episode += 1
 
-        if algorithm == "reinforce":
-            R = 0
-        elif algorithm == "a2c":
-            R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
+
+        R = critic(torch.tensor(observation, dtype=torch.float)).detach().numpy()[0]
 
         returns = discounted_rewards(rewards, R, gamma=0.4)
         states = states[:-25]
-        actions = actions[:-25]
         returns = returns[:-25]
-        if algorithm == "reinforce":
-            update_policy_reinforce(states, actions, returns, model, optimizer)
-        elif algorithm == "a2c":
-            update_policy_a2c(states, actions, returns, actor, critic, actor_optimizer, critic_optimizer)
+
+        update_policy(states, returns, critic, critic_optimizer)
         for s in range(len(states)):
             states_list.append(states[s].tolist())
             returns_list.append(returns[s])
@@ -351,10 +228,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
     theta_arr = []
     Z_arr = []
 
-    rewards, states, observation, actions, Z_history, Z, estimated_rates = run_one_episode(env, max_step, algorithm,
-                                                                                           model, actor, critic, uphill,
-                                                                                           Z_arr, theta_arr, rc_model,
-                                                                                           False)
+    rewards, states, observation, Z_history, Z, estimated_rates = run_one_episode(env, max_step, critic, Z_arr, theta_arr, rc_model, False)
     print("observation", observation)
     # result = find_rate_constants(Z, Z_arr, theta_arr, rc_model, env.u)
     # print("result", result)
@@ -462,20 +336,7 @@ def run(env, env_model, ODE_env, algorithm, uphill):
         plt.ylabel('n')
         plt.savefig('./oregonator.png')
         # plt.show()
-    '''
-    tt = np.linspace(0, max_episode, max_episode)
-    plt.cla()
-    zeros_prob = [item[0] for item in prob_list]
-    ones_prob = [item[1] for item in prob_list]
-    twos_prob = [item[2] for item in prob_list]
-    plt.plot(tt, zeros_prob, 'kx', label='Item 0')
-    plt.plot(tt, ones_prob, 'rx', label='Item 1')
-    plt.plot(tt, twos_prob, 'o', label='Item 2')
-    plt.legend(shadow=True, loc='lower right')
-    plt.xlabel('Episode #')
-    plt.ylabel('Probabilities')
-    plt.savefig('./policy_probs.png')
-    '''
+
 
     exit()
     env.close()
@@ -504,5 +365,5 @@ elif ODE_env == "Oregonator":
     env = OregonatorEnv(N, tau, dt)
     env_model = OregonatorEnvModel(N, tau, dt)
 # run(env, algorithm = "reinforce")
-run(env, env_model, ODE_env, algorithm="a2c", uphill=True)
+run(env, env_model, ODE_env)
 # run(env, algorithm = "optimal policy")
