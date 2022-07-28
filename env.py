@@ -99,7 +99,16 @@ class BrusselatorEnv(ODEBaseEnv):
         tt = np.linspace(0, self.tau, int(1 / self.dt))
         state_prev = self.state
         sc_prev = self.species
-        self.u = 0.001 * action
+
+        while abs(action[0]) > 0.002 or abs(action[1]) > 0.002:
+
+            action /= 10
+
+        #print("action", type(action), action[0], action[1])
+        self.u = action
+
+        #self.u = 0.001 * action
+
         #self.u = 0.00001 * action
         self.species = sc_prev + self.u
         z_init = self.state
