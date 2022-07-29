@@ -100,27 +100,17 @@ class BrusselatorEnv(ODEBaseEnv):
         state_prev = self.state
         sc_prev = self.species
 
-        while abs(action[0]) > 0.002 or abs(action[1]) > 0.002:
+        self.u = 0.001 * action
 
-            action /= 10
-
-        #print("action", type(action), action[0], action[1])
-        self.u = action
-
-        #self.u = 0.001 * action
-
-        #self.u = 0.00001 * action
         self.species = sc_prev + self.u
+
         z_init = self.state
         z = odeint(self.f, z_init, tt)
         self.state = z[-1]
         state_curr = self.state
 
-
-        #sc_curr = self.species
-
-        reward = -((state_prev - state_curr) ** 2).sum() #change reward function back to original
-        #reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
+        #reward = -((state_prev - state_curr) ** 2).sum() #change reward function back to original
+        reward = -(((state_prev - state_curr) / (state_prev + state_curr)) ** 2).sum()
         reward *= 1e3
         # print("reward", reward)
         done = False  # indicates whether the episode is terminated; optional

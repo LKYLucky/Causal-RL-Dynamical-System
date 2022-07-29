@@ -90,7 +90,12 @@ def run_one_episode(env_option, max_step, critic, Z_arr, theta_arr, rc_model, ca
     Z_init = get_z_init(ODE_env)
     env_option.init_state = Z_init
     if ODE_env == "Brusselator":
-        env_option.init_species = np.array([1.0, 3.0])
+        '''
+        prey = np.random.uniform(0.5, 1.5)
+        pred = np.random.uniform(1, 3)
+        env_option.init_species = np.array([prey, pred])
+        '''
+        env_option.init_species = np.array([1.0, 3])
     Z_history = np.expand_dims(Z_init, 0)
 
     init_state, init_species = env_option.reset()
@@ -105,10 +110,13 @@ def run_one_episode(env_option, max_step, critic, Z_arr, theta_arr, rc_model, ca
 
         if ODE_env != "Oregonator":
             u = uphill_policy(observation, critic)
+            #just to check for Brusselator
+            #u = np.array([0.0,  0.0])
         else:
             u = np.array([0.0, 0.0, 0.0])
 
         obs, reward, _, _, Z = env_option.step(u)  ##add gaussian noise
+
         for j in range(len(Z)):
             mu, sigma = 0, 0.00  # mean and standard deviation
             s = np.random.normal(mu, sigma)
@@ -287,6 +295,7 @@ def run(env, env_model, ODE_env):
     scores = scores[::10]
     print("scores", scores)
     plt.plot(np.arange(1, len(scores) + 1), scores)
+    plt.yscale('symlog')
     plt.ylabel('Score')
     plt.xlabel('Episode #')
     plt.savefig('./rewards.png')
